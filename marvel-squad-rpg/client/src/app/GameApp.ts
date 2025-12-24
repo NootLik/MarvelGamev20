@@ -258,51 +258,11 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
   },
 ];
 
-const palette = ["#0d47a1", "#4a148c", "#1b5e20", "#bf360c", "#263238"];
-
-const createPortrait = (label: string, accent: string) => {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="300" height="360" viewBox="0 0 300 360">
-      <defs>
-        <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="${accent}" />
-          <stop offset="100%" stop-color="#0b0f1f" />
-        </linearGradient>
-      </defs>
-      <rect width="300" height="360" rx="24" fill="url(#grad)" />
-      <circle cx="150" cy="140" r="74" fill="rgba(245,245,245,0.22)" />
-      <path d="M90 250c24-28 96-28 120 0v36H90z" fill="rgba(245,245,245,0.18)" />
-      <text x="150" y="320" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="24" fill="#f5f5f5">
-        ${label}
-      </text>
-    </svg>
-  `;
-
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
-
-const createPixelAvatar = (seed: string) => {
-  const hash = [...seed].reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const accent = palette[hash % palette.length];
-  const secondary = palette[(hash + 2) % palette.length];
-  const pattern = Array.from({ length: 36 }, (_, index) => ((hash + index * 7) % 5) > 1);
-  const pixels = pattern
-    .map((fill, index) => {
-      const x = (index % 6) * 8;
-      const y = Math.floor(index / 6) * 8;
-      return `<rect x="${x}" y="${y}" width="8" height="8" fill="${fill ? accent : secondary}" />`;
-    })
-    .join("");
-
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-      <rect width="48" height="48" rx="10" fill="#0b0f1f" />
-      ${pixels}
-    </svg>
-  `;
-
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 
 export class GameApp {
   private currentScreen: ScreenView = "title";
@@ -363,8 +323,9 @@ export class GameApp {
 
   private renderCharacters(root: Element) {
     const cards = CHARACTER_ROSTER.map((character) => {
-      const portrait = createPortrait(character.alias, character.accent);
-      const avatar = createPixelAvatar(character.alias);
+      const slug = slugify(character.alias);
+      const portrait = `/assets/characters/portraits/${slug}.svg`;
+      const avatar = `/assets/characters/avatars/${slug}.svg`;
 
       return `
         <article class="character-card">
