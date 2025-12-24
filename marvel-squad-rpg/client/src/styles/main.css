@@ -101,7 +101,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: url("/assets/title-background.jpg") center/cover no-repeat;
+  background: url("/assets/characters-background.jpg") center/cover no-repeat;
   overflow: hidden;
 }
 
