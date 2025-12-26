@@ -342,7 +342,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: url("/assets/title-background.jpg") center/cover no-repeat;
+  background: url("/assets/gamesetup-background.jpg") center/cover no-repeat;
   overflow: hidden;
 }
 
@@ -351,7 +351,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: url("/assets/rules-background.svg") center/cover no-repeat;
+  background: url("/assets/rules-background.jpg") center/cover no-repeat;
   overflow: hidden;
 }
 
