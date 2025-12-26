@@ -1,6 +1,6 @@
 import { routes } from "./routes";
 
-type ScreenView = "title" | "characters" | "lobby";
+type ScreenView = "title" | "characters" | "lobby" | "rules";
 
 type CharacterProfile = {
   name: string;
@@ -289,6 +289,11 @@ export class GameApp {
       return;
     }
 
+    if (this.currentScreen === "rules") {
+      this.renderRules(root);
+      return;
+    }
+
     this.renderCharacters(root);
   }
 
@@ -308,7 +313,7 @@ export class GameApp {
             <button class="title-screen__button" type="button" data-action="open-characters">
               Available Characters
             </button>
-            <button class="title-screen__button" type="button">Rules</button>
+            <button class="title-screen__button" type="button" data-action="open-rules">Rules</button>
             <button class="title-screen__button" type="button">Settings</button>
           </nav>
           <footer class="title-screen__footer">
@@ -328,6 +333,12 @@ export class GameApp {
     const lobbyButton = root.querySelector<HTMLButtonElement>("[data-action='open-lobby']");
     lobbyButton?.addEventListener("click", () => {
       this.currentScreen = "lobby";
+      this.render(root);
+    });
+
+    const rulesButton = root.querySelector<HTMLButtonElement>("[data-action='open-rules']");
+    rulesButton?.addEventListener("click", () => {
+      this.currentScreen = "rules";
       this.render(root);
     });
   }
@@ -529,6 +540,97 @@ export class GameApp {
           <div class="character-screen__grid" role="list">
             ${cards}
           </div>
+        </section>
+      </main>
+    `;
+
+    const backButton = root.querySelector<HTMLButtonElement>("[data-action='back-title']");
+    backButton?.addEventListener("click", () => {
+      this.currentScreen = "title";
+      this.render(root);
+    });
+  }
+
+  private renderRules(root: Element) {
+    root.innerHTML = `
+      <main class="app-shell rules-screen">
+        <div class="rules-screen__overlay"></div>
+        <section class="rules-screen__content">
+          <header class="rules-screen__header">
+            <div>
+              <p class="title-screen__eyebrow">Marvel Squad RPG</p>
+              <h1 class="rules-screen__title">Rules of Engagement</h1>
+              <p class="rules-screen__subtitle">
+                Draft your squad, master initiative, and outmaneuver opponents in tactical arenas.
+              </p>
+            </div>
+            <button class="title-screen__button rules-screen__back" type="button" data-action="back-title">
+              Back to Title
+            </button>
+          </header>
+
+          <section class="rules-screen__grid">
+            <article class="rules-card">
+              <h2>Squad Draft &amp; Point Budget</h2>
+              <p>
+                Every match sets a total points cap (for example: 15 points). You can spend those points on any
+                combination of characters. Players do <strong>not</strong> need the same number of characters.
+              </p>
+              <ul>
+                <li>Extreme example: one player drafts a single 15-point powerhouse.</li>
+                <li>Another player could field fifteen 1-point fighters.</li>
+                <li>Most squads land somewhere in the middle with a mix of heroes and support.</li>
+              </ul>
+            </article>
+
+            <article class="rules-card">
+              <h2>Traits &amp; Stats</h2>
+              <p>
+                Traits are the signature abilities that define a character’s role. They hint at unique powers,
+                tactics, or passives such as <em>Spider-Sense</em>, <em>Area Denial</em>, or <em>Regeneration</em>.
+              </p>
+              <p>
+                Stats like Strength, Speed, Reaction, Durability, and Psychic Resistance govern damage output,
+                initiative gain, defensive survivability, and resistance to mind-affecting effects.
+              </p>
+            </article>
+
+            <article class="rules-card">
+              <h2>Fog of War</h2>
+              <p>
+                Battlefields are shrouded until explored. Areas your squad has not discovered remain obscured,
+                forcing you to scout and control sight lines before committing to an attack.
+              </p>
+            </article>
+
+            <article class="rules-card">
+              <h2>Cover &amp; Line of Sight</h2>
+              <p>
+                Characters positioned behind map objects can gain <strong>cover</strong>. Covered targets cannot be
+                hit by ranged attacks until the attacker establishes a clear line of sight.
+              </p>
+            </article>
+
+            <article class="rules-card">
+              <h2>Initiative &amp; Turn Flow</h2>
+              <p>
+                The initiative bar fills based on each character’s Speed. Faster characters may act multiple times
+                before slower characters earn a turn, so turn order is dynamic rather than fixed.
+              </p>
+            </article>
+
+            <article class="rules-card rules-card--lore">
+              <h2>Backstory: The Shattered Accord</h2>
+              <p>
+                A Kree signal artifact has fractured reality across Marvel hotspots. The artifact projects distorted
+                visions that make every hero and villain believe they alone can stabilize the multiverse.
+              </p>
+              <p>
+                S.H.I.E.L.D. quarantined the zones, but the signal hijacked their tactical networks. Squads now fight
+                over the artifact’s fragments, each convinced the other is an impostor created by the rift.
+              </p>
+            </article>
+          </section>
         </section>
       </main>
     `;
