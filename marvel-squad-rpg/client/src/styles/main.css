@@ -552,6 +552,15 @@ body {
   font-size: 0.95rem;
 }
 
+.lobby-screen__form input[type="color"] {
+  background: rgba(10, 12, 24, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 0.4rem;
+  width: 100%;
+  height: 3rem;
+}
+
 .lobby-screen__form select:disabled {
   opacity: 0.6;
   cursor: not-allowed;

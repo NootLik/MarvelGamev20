@@ -1,6 +1,6 @@
 import { routes } from "./routes";
 
-type ScreenView = "title" | "characters" | "lobby" | "rules";
+type ScreenView = "title" | "characters" | "lobby" | "cpu-setup" | "rules";
 type CharacterSelectionMode = "browse" | "draft";
 type DraftPlayer = "one" | "two";
 type DraftSettings = {
@@ -273,6 +273,7 @@ const slugify = (value: string) =>
 export class GameApp {
   private currentScreen: ScreenView = "title";
   private characterSelectionMode: CharacterSelectionMode = "browse";
+  private draftOrigin: "lobby" | "cpu-setup" | null = null;
   private teamPointCap = 20;
   private pointsRemaining = { one: 20, two: 20 };
   private selectedCharacters = { one: [] as string[], two: [] as string[] };
@@ -282,6 +283,8 @@ export class GameApp {
     allowDuplicateSelection: true,
   };
   private readyState = { playerOne: false, playerTwo: false };
+  private playerHighlightColor = "#e53935";
+  private cpuDifficulty = "Veteran";
 
   constructor(private readonly selector: string) {}
 
@@ -305,6 +308,11 @@ export class GameApp {
       return;
     }
 
+    if (this.currentScreen === "cpu-setup") {
+      this.renderCpuSetup(root);
+      return;
+    }
+
     if (this.currentScreen === "rules") {
       this.renderRules(root);
       return;
@@ -325,7 +333,7 @@ export class GameApp {
           </header>
           <nav class="title-screen__menu" aria-label="Main menu">
             <button class="title-screen__button" type="button" data-action="open-lobby">Player vs Player</button>
-            <button class="title-screen__button" type="button">Computer vs Computer</button>
+            <button class="title-screen__button" type="button" data-action="open-cpu-setup">Player vs Computer</button>
             <button class="title-screen__button" type="button" data-action="open-characters">
               Available Characters
             </button>
@@ -343,6 +351,7 @@ export class GameApp {
     const button = root.querySelector<HTMLButtonElement>("[data-action='open-characters']");
     button?.addEventListener("click", () => {
       this.characterSelectionMode = "browse";
+      this.draftOrigin = null;
       this.currentScreen = "characters";
       this.render(root);
     });
@@ -356,6 +365,12 @@ export class GameApp {
     const rulesButton = root.querySelector<HTMLButtonElement>("[data-action='open-rules']");
     rulesButton?.addEventListener("click", () => {
       this.currentScreen = "rules";
+      this.render(root);
+    });
+
+    const cpuSetupButton = root.querySelector<HTMLButtonElement>("[data-action='open-cpu-setup']");
+    cpuSetupButton?.addEventListener("click", () => {
+      this.currentScreen = "cpu-setup";
       this.render(root);
     });
   }
@@ -458,6 +473,10 @@ export class GameApp {
                     <option>Survival</option>
                   </select>
                 </label>
+                <label>
+                  Player One Highlight Color
+                  <input type="color" data-setting="player-color" aria-label="Player one highlight color" />
+                </label>
               </div>
             </div>
 
@@ -509,6 +528,7 @@ export class GameApp {
       const allowDuplicateSelection =
         (allowDuplicateSelect?.value ?? "yes") === "yes" || !seeOpponentSelection;
       this.draftSettings = { seeOpponentSelection, allowDuplicateSelection };
+      this.draftOrigin = "lobby";
       this.characterSelectionMode = "draft";
       this.currentScreen = "characters";
       this.render(root);
@@ -540,6 +560,188 @@ export class GameApp {
       seeOpponentSelect.addEventListener("change", syncSelectionSettings);
       allowDuplicateSelect.addEventListener("change", syncSelectionSettings);
     }
+
+    const playerColorInput = root.querySelector<HTMLInputElement>("[data-setting='player-color']");
+    if (playerColorInput) {
+      playerColorInput.value = this.playerHighlightColor;
+      playerColorInput.addEventListener("change", () => {
+        this.playerHighlightColor = playerColorInput.value;
+      });
+    }
+  }
+
+  private renderCpuSetup(root: Element) {
+    root.innerHTML = `
+      <main class="app-shell lobby-screen">
+        <div class="lobby-screen__overlay"></div>
+        <section class="lobby-screen__content">
+          <header class="lobby-screen__header">
+            <div>
+              <p class="title-screen__eyebrow">Marvel Squad RPG</p>
+              <h1 class="lobby-screen__title">Player vs Computer Setup</h1>
+              <p class="lobby-screen__subtitle">
+                Configure the match rules and pick the AI difficulty before drafting your squad.
+              </p>
+            </div>
+            <div class="lobby-screen__actions">
+              <button class="title-screen__button" type="button" data-action="cancel-game">
+                Back to Title
+              </button>
+              <button
+                class="title-screen__button lobby-screen__button-next"
+                type="button"
+                data-action="open-characters"
+              >
+                Character Selection
+              </button>
+            </div>
+          </header>
+
+          <section class="lobby-screen__grid" aria-label="Match settings">
+            <div class="lobby-screen__panel">
+              <h2>Game Settings</h2>
+              <div class="lobby-screen__form">
+                <label>
+                  Map
+                  <select>
+                    <option>Stark Tower Atrium</option>
+                    <option>Madripoor Backstreets</option>
+                    <option>Helicarrier Hangar</option>
+                    <option>Xavier Institute</option>
+                    <option>Quantum Realm Rift</option>
+                  </select>
+                </label>
+                <label>
+                  Map Size
+                  <select>
+                    <option>Compact</option>
+                    <option>Standard</option>
+                    <option>Large</option>
+                    <option>Massive</option>
+                  </select>
+                </label>
+                <label>
+                  Total Team Points
+                  <select data-setting="team-points">
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                    <option value="25">25</option>
+                    <option value="30">30</option>
+                  </select>
+                </label>
+                <label>
+                  See opponent character selection
+                  <select data-setting="see-opponent">
+                    <option value="no">No</option>
+                    <option value="yes">Yes</option>
+                  </select>
+                </label>
+                <label>
+                  Allow duplicate hero selection
+                  <select data-setting="allow-duplicate">
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </label>
+                <label>
+                  Game Type
+                  <select>
+                    <option>Skirmish</option>
+                    <option>Capture the Relic</option>
+                    <option>King of the Hill</option>
+                    <option>Escort</option>
+                    <option>Survival</option>
+                  </select>
+                </label>
+                <label>
+                  Computer Difficulty
+                  <select data-setting="cpu-difficulty">
+                    <option>Recruit</option>
+                    <option>Veteran</option>
+                    <option>Heroic</option>
+                    <option>Legendary</option>
+                  </select>
+                </label>
+                <label>
+                  Player Highlight Color
+                  <input type="color" data-setting="player-color" aria-label="Player highlight color" />
+                </label>
+              </div>
+            </div>
+          </section>
+        </section>
+        <audio class="lobby-screen__music" src="/assets/title-theme.mp4" autoplay loop></audio>
+      </main>
+    `;
+
+    const cancelButton = root.querySelector<HTMLButtonElement>("[data-action='cancel-game']");
+    cancelButton?.addEventListener("click", () => {
+      this.currentScreen = "title";
+      this.render(root);
+    });
+
+    const proceedButton = root.querySelector<HTMLButtonElement>("[data-action='open-characters']");
+    proceedButton?.addEventListener("click", () => {
+      const pointsSelect = root.querySelector<HTMLSelectElement>("[data-setting='team-points']");
+      const seeOpponentSelect = root.querySelector<HTMLSelectElement>("[data-setting='see-opponent']");
+      const allowDuplicateSelect = root.querySelector<HTMLSelectElement>("[data-setting='allow-duplicate']");
+      this.teamPointCap = Number(pointsSelect?.value ?? 20);
+      this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
+      this.selectedCharacters = { one: [], two: [] };
+      this.activeDraftPlayer = "one";
+      this.readyState = { playerOne: false, playerTwo: false };
+      const seeOpponentSelection = (seeOpponentSelect?.value ?? "no") === "yes";
+      const allowDuplicateSelection =
+        (allowDuplicateSelect?.value ?? "yes") === "yes" || !seeOpponentSelection;
+      this.draftSettings = { seeOpponentSelection, allowDuplicateSelection };
+      this.draftOrigin = "cpu-setup";
+      this.characterSelectionMode = "draft";
+      this.currentScreen = "characters";
+      this.render(root);
+    });
+
+    const pointsSelect = root.querySelector<HTMLSelectElement>("[data-setting='team-points']");
+    const seeOpponentSelect = root.querySelector<HTMLSelectElement>("[data-setting='see-opponent']");
+    const allowDuplicateSelect = root.querySelector<HTMLSelectElement>("[data-setting='allow-duplicate']");
+    const cpuDifficultySelect = root.querySelector<HTMLSelectElement>("[data-setting='cpu-difficulty']");
+    if (pointsSelect) {
+      pointsSelect.value = String(this.teamPointCap);
+      pointsSelect.addEventListener("change", () => {
+        this.teamPointCap = Number(pointsSelect.value);
+      });
+    }
+
+    if (seeOpponentSelect && allowDuplicateSelect) {
+      seeOpponentSelect.value = this.draftSettings.seeOpponentSelection ? "yes" : "no";
+      allowDuplicateSelect.value = this.draftSettings.allowDuplicateSelection ? "yes" : "no";
+      allowDuplicateSelect.disabled = !this.draftSettings.seeOpponentSelection;
+
+      const syncSelectionSettings = () => {
+        const seeOpponent = seeOpponentSelect.value === "yes";
+        allowDuplicateSelect.disabled = !seeOpponent;
+        if (!seeOpponent) {
+          allowDuplicateSelect.value = "yes";
+        }
+      };
+
+      seeOpponentSelect.addEventListener("change", syncSelectionSettings);
+      allowDuplicateSelect.addEventListener("change", syncSelectionSettings);
+    }
+
+    if (cpuDifficultySelect) {
+      cpuDifficultySelect.value = this.cpuDifficulty;
+      cpuDifficultySelect.addEventListener("change", () => {
+        this.cpuDifficulty = cpuDifficultySelect.value;
+      });
+    }
+
+    const playerColorInput = root.querySelector<HTMLInputElement>("[data-setting='player-color']");
+    if (playerColorInput) {
+      playerColorInput.value = this.playerHighlightColor;
+      playerColorInput.addEventListener("change", () => {
+        this.playerHighlightColor = playerColorInput.value;
+      });
+    }
   }
 
   private renderCharacters(root: Element) {
@@ -547,9 +749,10 @@ export class GameApp {
     const showOpponentSelection = this.draftSettings.seeOpponentSelection;
     const allowDuplicateSelection = this.draftSettings.allowDuplicateSelection;
     const playerColors = {
-      one: ["#e53935", "#fbc02d"],
+      one: [this.playerHighlightColor, this.playerHighlightColor],
       two: ["#1e88e5", "#43a047"],
     };
+    const draftBackLabel = this.draftOrigin === "cpu-setup" ? "Back to Game Setup" : "Back to Lobby";
 
     const isSelectedByPlayer = (player: DraftPlayer, id: string) =>
       this.selectedCharacters[player].includes(id);
@@ -755,7 +958,7 @@ export class GameApp {
                 type="button"
                 data-action="back-screen"
               >
-                ${isDraft ? "Back to Lobby" : "Back to Title"}
+                ${isDraft ? draftBackLabel : "Back to Title"}
               </button>
             </div>
           </header>
@@ -768,7 +971,12 @@ export class GameApp {
 
     const backButton = root.querySelector<HTMLButtonElement>("[data-action='back-screen']");
     backButton?.addEventListener("click", () => {
-      this.currentScreen = isDraft ? "lobby" : "title";
+      if (isDraft) {
+        this.resetDraftSelections();
+        this.currentScreen = this.draftOrigin === "cpu-setup" ? "cpu-setup" : "lobby";
+      } else {
+        this.currentScreen = "title";
+      }
       this.render(root);
     });
 
@@ -924,6 +1132,13 @@ export class GameApp {
     });
 
     updateDraftUI();
+  }
+
+  private resetDraftSelections() {
+    this.selectedCharacters = { one: [], two: [] };
+    this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
+    this.activeDraftPlayer = "one";
+    this.readyState = { playerOne: false, playerTwo: false };
   }
 
   private renderRules(root: Element) {
