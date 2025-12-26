@@ -1,6 +1,6 @@
 import { routes } from "./routes";
 
-type ScreenView = "title" | "characters" | "lobby" | "rules";
+type ScreenView = "title" | "characters" | "lobby" | "pvc-lobby" | "rules";
 
 type CharacterProfile = {
   name: string;
@@ -289,6 +289,11 @@ export class GameApp {
       return;
     }
 
+    if (this.currentScreen === "pvc-lobby") {
+      this.renderPlayerVsComputerLobby(root);
+      return;
+    }
+
     if (this.currentScreen === "rules") {
       this.renderRules(root);
       return;
@@ -309,7 +314,7 @@ export class GameApp {
           </header>
           <nav class="title-screen__menu" aria-label="Main menu">
             <button class="title-screen__button" type="button" data-action="open-lobby">Player vs Player</button>
-            <button class="title-screen__button" type="button">Computer vs Computer</button>
+            <button class="title-screen__button" type="button" data-action="open-pvc-lobby">Player vs Computer</button>
             <button class="title-screen__button" type="button" data-action="open-characters">
               Available Characters
             </button>
@@ -333,6 +338,12 @@ export class GameApp {
     const lobbyButton = root.querySelector<HTMLButtonElement>("[data-action='open-lobby']");
     lobbyButton?.addEventListener("click", () => {
       this.currentScreen = "lobby";
+      this.render(root);
+    });
+
+    const playerVsComputerButton = root.querySelector<HTMLButtonElement>("[data-action='open-pvc-lobby']");
+    playerVsComputerButton?.addEventListener("click", () => {
+      this.currentScreen = "pvc-lobby";
       this.render(root);
     });
 
@@ -451,6 +462,103 @@ export class GameApp {
               <div class="lobby-screen__note">
                 Diagnostics are shared to verify the tunnel is healthy without exposing real IP addresses.
               </div>
+            </div>
+          </section>
+        </section>
+        <audio class="lobby-screen__music" src="/assets/title-theme.mp4" autoplay loop></audio>
+      </main>
+    `;
+
+    const cancelButton = root.querySelector<HTMLButtonElement>("[data-action='cancel-game']");
+    cancelButton?.addEventListener("click", () => {
+      this.currentScreen = "title";
+      this.render(root);
+    });
+
+    const proceedButton = root.querySelector<HTMLButtonElement>("[data-action='open-characters']");
+    proceedButton?.addEventListener("click", () => {
+      this.currentScreen = "characters";
+      this.render(root);
+    });
+  }
+
+  private renderPlayerVsComputerLobby(root: Element) {
+    root.innerHTML = `
+      <main class="app-shell lobby-screen lobby-screen--pvc">
+        <div class="lobby-screen__overlay"></div>
+        <section class="lobby-screen__content">
+          <header class="lobby-screen__header">
+            <div>
+              <p class="title-screen__eyebrow">Marvel Squad RPG</p>
+              <h1 class="lobby-screen__title">Player vs Computer Lobby</h1>
+              <p class="lobby-screen__subtitle">
+                Tune the match settings before drafting your squad against the AI.
+              </p>
+            </div>
+            <div class="lobby-screen__actions">
+              <button class="title-screen__button" type="button" data-action="cancel-game">
+                Cancel Game
+              </button>
+              <button
+                class="title-screen__button lobby-screen__button-next"
+                type="button"
+                data-action="open-characters"
+              >
+                Character Selection
+              </button>
+            </div>
+          </header>
+
+          <section class="lobby-screen__panel" aria-label="Match settings">
+            <h2>Game Settings</h2>
+            <div class="lobby-screen__form">
+              <label>
+                Map
+                <select>
+                  <option>Stark Tower Atrium</option>
+                  <option>Madripoor Backstreets</option>
+                  <option>Helicarrier Hangar</option>
+                  <option>Xavier Institute</option>
+                  <option>Quantum Realm Rift</option>
+                </select>
+              </label>
+              <label>
+                Map Size
+                <select>
+                  <option>Compact</option>
+                  <option>Standard</option>
+                  <option>Large</option>
+                  <option>Massive</option>
+                </select>
+              </label>
+              <label>
+                Total Team Points
+                <select>
+                  <option>15</option>
+                  <option>20</option>
+                  <option>25</option>
+                  <option>30</option>
+                </select>
+              </label>
+              <label>
+                Game Type
+                <select>
+                  <option>Skirmish</option>
+                  <option>Capture the Relic</option>
+                  <option>King of the Hill</option>
+                  <option>Escort</option>
+                  <option>Survival</option>
+                </select>
+              </label>
+              <label>
+                AI Difficulty
+                <select>
+                  <option>Story</option>
+                  <option>Veteran</option>
+                  <option>Heroic</option>
+                  <option>Legendary</option>
+                </select>
+              </label>
             </div>
           </section>
         </section>
