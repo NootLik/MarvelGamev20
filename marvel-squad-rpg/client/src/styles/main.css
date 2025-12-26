@@ -346,6 +346,10 @@ body {
   overflow: hidden;
 }
 
+.lobby-screen--pvc {
+  background: url("/assets/title-background.jpg") center/cover no-repeat;
+}
+
 .rules-screen {
   position: relative;
   display: flex;
