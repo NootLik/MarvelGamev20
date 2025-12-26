@@ -1,6 +1,13 @@
 import { routes } from "./routes";
 
 type ScreenView = "title" | "characters" | "lobby" | "rules";
+type CharacterSelectionMode = "browse" | "draft";
+type DraftPlayer = "one" | "two";
+type DraftSettings = {
+  seeOpponentSelection: boolean;
+  allowDuplicateSelection: boolean;
+  playerColors: { one: string; two: string };
+};
 
 type CharacterProfile = {
   name: string;
@@ -266,6 +273,17 @@ const slugify = (value: string) =>
 
 export class GameApp {
   private currentScreen: ScreenView = "title";
+  private characterSelectionMode: CharacterSelectionMode = "browse";
+  private teamPointCap = 20;
+  private pointsRemaining = { one: 20, two: 20 };
+  private selectedCharacters = { one: [] as string[], two: [] as string[] };
+  private activeDraftPlayer: DraftPlayer = "one";
+  private draftSettings: DraftSettings = {
+    seeOpponentSelection: false,
+    allowDuplicateSelection: true,
+    playerColors: { one: "#e53935", two: "#1e88e5" },
+  };
+  private readyState = { playerOne: false, playerTwo: false };
 
   constructor(private readonly selector: string) {}
 
@@ -326,6 +344,11 @@ export class GameApp {
 
     const button = root.querySelector<HTMLButtonElement>("[data-action='open-characters']");
     button?.addEventListener("click", () => {
+      this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
+      this.selectedCharacters = { one: [], two: [] };
+      this.activeDraftPlayer = "one";
+      this.readyState = { playerOne: false, playerTwo: false };
+      this.characterSelectionMode = "browse";
       this.currentScreen = "characters";
       this.render(root);
     });
@@ -410,11 +433,43 @@ export class GameApp {
                 </label>
                 <label>
                   Total Team Points
-                  <select>
-                    <option>15</option>
-                    <option>20</option>
-                    <option>25</option>
-                    <option>30</option>
+                  <select data-setting="team-points">
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                    <option value="25">25</option>
+                    <option value="30">30</option>
+                  </select>
+                </label>
+                <label>
+                  See opponent character selection
+                  <select data-setting="see-opponent">
+                    <option value="no">No</option>
+                    <option value="yes">Yes</option>
+                  </select>
+                </label>
+                <label>
+                  Allow duplicate hero selection
+                  <select data-setting="allow-duplicate">
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </label>
+                <label>
+                  Player One Color
+                  <select data-setting="player-one-color">
+                    <option value="#e53935">Red</option>
+                    <option value="#1e88e5">Blue</option>
+                    <option value="#fbc02d">Yellow</option>
+                    <option value="#43a047">Green</option>
+                  </select>
+                </label>
+                <label>
+                  Player Two Color
+                  <select data-setting="player-two-color">
+                    <option value="#1e88e5">Blue</option>
+                    <option value="#e53935">Red</option>
+                    <option value="#fbc02d">Yellow</option>
+                    <option value="#43a047">Green</option>
                   </select>
                 </label>
                 <label>
@@ -466,19 +521,137 @@ export class GameApp {
 
     const proceedButton = root.querySelector<HTMLButtonElement>("[data-action='open-characters']");
     proceedButton?.addEventListener("click", () => {
+      const pointsSelect = root.querySelector<HTMLSelectElement>("[data-setting='team-points']");
+      const seeOpponentSelect = root.querySelector<HTMLSelectElement>("[data-setting='see-opponent']");
+      const allowDuplicateSelect = root.querySelector<HTMLSelectElement>("[data-setting='allow-duplicate']");
+      const playerOneColorSelect = root.querySelector<HTMLSelectElement>("[data-setting='player-one-color']");
+      const playerTwoColorSelect = root.querySelector<HTMLSelectElement>("[data-setting='player-two-color']");
+      this.teamPointCap = Number(pointsSelect?.value ?? 20);
+      this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
+      this.selectedCharacters = { one: [], two: [] };
+      this.activeDraftPlayer = "one";
+      this.readyState = { playerOne: false, playerTwo: false };
+      const seeOpponentSelection = (seeOpponentSelect?.value ?? "no") === "yes";
+      const allowDuplicateSelection =
+        (allowDuplicateSelect?.value ?? "yes") === "yes" || !seeOpponentSelection;
+      const playerColors = {
+        one: playerOneColorSelect?.value ?? this.draftSettings.playerColors.one,
+        two: playerTwoColorSelect?.value ?? this.draftSettings.playerColors.two,
+      };
+      this.draftSettings = { seeOpponentSelection, allowDuplicateSelection, playerColors };
+      this.characterSelectionMode = "draft";
       this.currentScreen = "characters";
       this.render(root);
     });
+
+    const pointsSelect = root.querySelector<HTMLSelectElement>("[data-setting='team-points']");
+    const seeOpponentSelect = root.querySelector<HTMLSelectElement>("[data-setting='see-opponent']");
+    const allowDuplicateSelect = root.querySelector<HTMLSelectElement>("[data-setting='allow-duplicate']");
+    const playerOneColorSelect = root.querySelector<HTMLSelectElement>("[data-setting='player-one-color']");
+    const playerTwoColorSelect = root.querySelector<HTMLSelectElement>("[data-setting='player-two-color']");
+    if (pointsSelect) {
+      pointsSelect.value = String(this.teamPointCap);
+      pointsSelect.addEventListener("change", () => {
+        this.teamPointCap = Number(pointsSelect.value);
+      });
+    }
+
+    if (seeOpponentSelect && allowDuplicateSelect) {
+      seeOpponentSelect.value = this.draftSettings.seeOpponentSelection ? "yes" : "no";
+      allowDuplicateSelect.value = this.draftSettings.allowDuplicateSelection ? "yes" : "no";
+      allowDuplicateSelect.disabled = !this.draftSettings.seeOpponentSelection;
+
+      const syncSelectionSettings = () => {
+        const seeOpponent = seeOpponentSelect.value === "yes";
+        allowDuplicateSelect.disabled = !seeOpponent;
+        if (!seeOpponent) {
+          allowDuplicateSelect.value = "yes";
+        }
+      };
+
+      seeOpponentSelect.addEventListener("change", syncSelectionSettings);
+      allowDuplicateSelect.addEventListener("change", syncSelectionSettings);
+    }
+
+    if (playerOneColorSelect && playerTwoColorSelect) {
+      playerOneColorSelect.value = this.draftSettings.playerColors.one;
+      playerTwoColorSelect.value = this.draftSettings.playerColors.two;
+      const syncPlayerColors = () => {
+        this.draftSettings.playerColors = {
+          one: playerOneColorSelect.value,
+          two: playerTwoColorSelect.value,
+        };
+      };
+      playerOneColorSelect.addEventListener("change", syncPlayerColors);
+      playerTwoColorSelect.addEventListener("change", syncPlayerColors);
+    }
   }
 
   private renderCharacters(root: Element) {
+    const isDraft = this.characterSelectionMode === "draft";
+    const showOpponentSelection = this.draftSettings.seeOpponentSelection;
+    const allowDuplicateSelection = this.draftSettings.allowDuplicateSelection;
+    const playerColors = {
+      one: this.draftSettings.playerColors.one,
+      two: this.draftSettings.playerColors.two,
+    };
+
+    const isSelectedByPlayer = (player: DraftPlayer, id: string) =>
+      this.selectedCharacters[player].includes(id);
+    const getSelectionColor = (player: DraftPlayer) => playerColors[player];
+    const playerLabel = (player: DraftPlayer) => (player === "one" ? "Player One" : "Player Two");
+    const canPlayerPick = (player: DraftPlayer) =>
+      CHARACTER_ROSTER.some((character) => {
+        const id = slugify(character.alias);
+        const alreadySelected =
+          isSelectedByPlayer("one", id) || isSelectedByPlayer("two", id);
+        if (!allowDuplicateSelection && alreadySelected) {
+          return false;
+        }
+        if (allowDuplicateSelection && isSelectedByPlayer(player, id)) {
+          return false;
+        }
+        return this.pointsRemaining[player] - character.pointValue >= 0;
+      });
+
     const cards = CHARACTER_ROSTER.map((character) => {
       const slug = slugify(character.alias);
       const portrait = `/assets/characters/portraits/${slug}.svg`;
       const avatar = `/assets/characters/avatars/${slug}.svg`;
+      const selectedByOne = isSelectedByPlayer("one", slug);
+      const selectedByTwo = isSelectedByPlayer("two", slug);
+      const showPlayerOne = selectedByOne && (showOpponentSelection || this.activeDraftPlayer === "one");
+      const showPlayerTwo = selectedByTwo && (showOpponentSelection || this.activeDraftPlayer === "two");
+      const isSelected = showPlayerOne || showPlayerTwo;
+      const isContested = showPlayerOne && showPlayerTwo;
+      const selectionColor = showPlayerOne
+        ? getSelectionColor("one")
+        : showPlayerTwo
+          ? getSelectionColor("two")
+          : undefined;
+      const secondaryColor = showPlayerOne && showPlayerTwo ? getSelectionColor("two") : undefined;
+      const alreadySelected =
+        isSelectedByPlayer("one", slug) || isSelectedByPlayer("two", slug);
+      const cannotAfford = this.pointsRemaining[this.activeDraftPlayer] - character.pointValue < 0;
+      const cannotSelect =
+        !isDraft ||
+        cannotAfford ||
+        (!allowDuplicateSelection && alreadySelected) ||
+        (allowDuplicateSelection && isSelectedByPlayer(this.activeDraftPlayer, slug));
 
       return `
-        <article class="character-card">
+        <article
+          class="character-card${isSelected ? " character-card--selected" : ""}${isContested ? " character-card--contested" : ""}${cannotSelect ? " character-card--disabled" : ""}"
+          data-character-id="${slug}"
+          data-point-value="${character.pointValue}"
+          ${
+            selectionColor
+              ? `style="--selection-color: ${selectionColor};${
+                  secondaryColor ? ` --selection-color-secondary: ${secondaryColor};` : ""
+                }"`
+              : ""
+          }
+        >
           <div class="character-card__media">
             <img class="character-card__portrait" src="${portrait}" alt="Portrait of ${character.alias}" />
             <img class="character-card__avatar" src="${avatar}" alt="Pixel avatar for ${character.alias}" />
@@ -522,7 +695,7 @@ export class GameApp {
     }).join("");
 
     root.innerHTML = `
-      <main class="app-shell character-screen">
+      <main class="app-shell character-screen${isDraft ? " character-screen--draft" : ""}">
         <div class="character-screen__overlay"></div>
         <section class="character-screen__content">
           <header class="character-screen__header">
@@ -533,9 +706,99 @@ export class GameApp {
                 Point value balances fair team builds. Each match has a maximum point cap for team totals.
               </p>
             </div>
-            <button class="title-screen__button character-screen__back" type="button" data-action="back-title">
-              Back to Title
-            </button>
+            <div class="character-screen__actions">
+              ${
+                isDraft
+                  ? `
+                    <div class="character-screen__points">
+                      ${
+                        showOpponentSelection
+                          ? `
+                            <div class="character-screen__points-block">
+                              <span class="character-screen__points-label">${playerLabel("one")}</span>
+                              <span class="character-screen__points-value" data-role="points-remaining" data-player="one">${this.pointsRemaining.one}</span>
+                              <span class="character-screen__points-total">/ ${this.teamPointCap}</span>
+                            </div>
+                            <div class="character-screen__points-block">
+                              <span class="character-screen__points-label">${playerLabel("two")}</span>
+                              <span class="character-screen__points-value" data-role="points-remaining" data-player="two">${this.pointsRemaining.two}</span>
+                              <span class="character-screen__points-total">/ ${this.teamPointCap}</span>
+                            </div>
+                          `
+                          : `
+                            <div class="character-screen__points-block">
+                              <span class="character-screen__points-label" data-role="points-label">${playerLabel(this.activeDraftPlayer)}</span>
+                              <span class="character-screen__points-value" data-role="points-remaining">${this.pointsRemaining[this.activeDraftPlayer]}</span>
+                              <span class="character-screen__points-total">/ ${this.teamPointCap}</span>
+                            </div>
+                          `
+                      }
+                    </div>
+                    <div class="character-screen__ready">
+                      ${
+                        allowDuplicateSelection
+                          ? `
+                            <div class="character-screen__player-toggle" role="group" aria-label="Active player selection">
+                              <button
+                                class="title-screen__button character-screen__player-button"
+                                type="button"
+                                data-action="set-active-player"
+                                data-player="one"
+                              >
+                                Editing: Player One
+                              </button>
+                              <button
+                                class="title-screen__button character-screen__player-button"
+                                type="button"
+                                data-action="set-active-player"
+                                data-player="two"
+                              >
+                                Editing: Player Two
+                              </button>
+                            </div>
+                          `
+                          : `
+                            <div class="character-screen__turn-indicator">
+                              Current turn: ${playerLabel(this.activeDraftPlayer)}
+                            </div>
+                          `
+                      }
+                      <button
+                        class="title-screen__button character-screen__ready-button"
+                        type="button"
+                        data-action="toggle-ready"
+                        data-player="one"
+                      >
+                        Player One Ready
+                      </button>
+                      <button
+                        class="title-screen__button character-screen__ready-button"
+                        type="button"
+                        data-action="toggle-ready"
+                        data-player="two"
+                      >
+                        Player Two Ready
+                      </button>
+                      <button
+                        class="title-screen__button character-screen__start-button"
+                        type="button"
+                        data-action="start-game"
+                        disabled
+                      >
+                        Waiting on other player
+                      </button>
+                    </div>
+                  `
+                  : ""
+              }
+              <button
+                class="title-screen__button character-screen__back"
+                type="button"
+                data-action="back-screen"
+              >
+                ${isDraft ? "Back to Lobby" : "Back to Title"}
+              </button>
+            </div>
           </header>
           <div class="character-screen__grid" role="list">
             ${cards}
@@ -544,11 +807,168 @@ export class GameApp {
       </main>
     `;
 
-    const backButton = root.querySelector<HTMLButtonElement>("[data-action='back-title']");
+    const backButton = root.querySelector<HTMLButtonElement>("[data-action='back-screen']");
     backButton?.addEventListener("click", () => {
-      this.currentScreen = "title";
+      this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
+      this.selectedCharacters = { one: [], two: [] };
+      this.activeDraftPlayer = "one";
+      this.readyState = { playerOne: false, playerTwo: false };
+      this.currentScreen = isDraft ? "lobby" : "title";
       this.render(root);
     });
+
+    if (!isDraft) {
+      return;
+    }
+
+    const pointsRemainingEls = root.querySelectorAll<HTMLElement>("[data-role='points-remaining']");
+    const pointsLabel = root.querySelector<HTMLElement>("[data-role='points-label']");
+    const readyButtons = root.querySelectorAll<HTMLButtonElement>("[data-action='toggle-ready']");
+    const playerButtons = root.querySelectorAll<HTMLButtonElement>("[data-action='set-active-player']");
+    const startButton = root.querySelector<HTMLButtonElement>("[data-action='start-game']");
+    const cardElements = Array.from(root.querySelectorAll<HTMLElement>(".character-card"));
+
+    const updateDraftUI = () => {
+      pointsRemainingEls.forEach((element) => {
+        const player = (element.dataset.player as DraftPlayer | undefined) ?? this.activeDraftPlayer;
+        element.textContent = String(this.pointsRemaining[player]);
+      });
+      if (pointsLabel && !showOpponentSelection) {
+        pointsLabel.textContent = playerLabel(this.activeDraftPlayer);
+      }
+
+      readyButtons.forEach((button) => {
+        const player = button.dataset.player;
+        const isReady =
+          player === "one" ? this.readyState.playerOne : this.readyState.playerTwo;
+        button.classList.toggle("character-screen__ready-button--active", isReady);
+        button.textContent = isReady
+          ? `${player === "one" ? "Player One" : "Player Two"} Ready ✓`
+          : `${player === "one" ? "Player One" : "Player Two"} Ready`;
+      });
+
+      const allReady = this.readyState.playerOne && this.readyState.playerTwo;
+      if (startButton) {
+        startButton.disabled = !allReady;
+        startButton.textContent = allReady ? "Start Game" : "Waiting on other player";
+      }
+
+      playerButtons.forEach((button) => {
+        const player = button.dataset.player as DraftPlayer | undefined;
+        if (!player) {
+          return;
+        }
+        button.classList.toggle("character-screen__player-button--active", player === this.activeDraftPlayer);
+      });
+
+      cardElements.forEach((card) => {
+        const id = card.dataset.characterId;
+        const value = Number(card.dataset.pointValue ?? 0);
+        if (!id) {
+          return;
+        }
+        const selectedByOne = isSelectedByPlayer("one", id);
+        const selectedByTwo = isSelectedByPlayer("two", id);
+        const showPlayerOne = selectedByOne && (showOpponentSelection || this.activeDraftPlayer === "one");
+        const showPlayerTwo = selectedByTwo && (showOpponentSelection || this.activeDraftPlayer === "two");
+        const selectionColor = showPlayerOne
+          ? getSelectionColor("one")
+          : showPlayerTwo
+            ? getSelectionColor("two")
+            : undefined;
+        const secondaryColor = showPlayerOne && showPlayerTwo ? getSelectionColor("two") : undefined;
+        const isSelected = Boolean(showPlayerOne || showPlayerTwo);
+        const alreadySelected = selectedByOne || selectedByTwo;
+        const cannotAfford = this.pointsRemaining[this.activeDraftPlayer] - value < 0;
+        const cannotSelect =
+          cannotAfford ||
+          (!allowDuplicateSelection && alreadySelected) ||
+          (allowDuplicateSelection && isSelectedByPlayer(this.activeDraftPlayer, id));
+        card.classList.toggle("character-card--selected", isSelected);
+        card.classList.toggle("character-card--contested", showPlayerOne && showPlayerTwo);
+        if (selectionColor) {
+          card.style.setProperty("--selection-color", selectionColor);
+        } else {
+          card.style.removeProperty("--selection-color");
+        }
+        if (secondaryColor) {
+          card.style.setProperty("--selection-color-secondary", secondaryColor);
+        } else {
+          card.style.removeProperty("--selection-color-secondary");
+        }
+        card.classList.toggle("character-card--disabled", cannotSelect);
+      });
+    };
+
+    readyButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const player = button.dataset.player;
+        if (player === "one") {
+          this.readyState.playerOne = !this.readyState.playerOne;
+        } else {
+          this.readyState.playerTwo = !this.readyState.playerTwo;
+        }
+        updateDraftUI();
+      });
+    });
+
+    playerButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const player = button.dataset.player as DraftPlayer | undefined;
+        if (!player || !allowDuplicateSelection) {
+          return;
+        }
+        this.activeDraftPlayer = player;
+        updateDraftUI();
+      });
+    });
+
+    cardElements.forEach((card) => {
+      card.addEventListener("click", () => {
+        const id = card.dataset.characterId;
+        const value = Number(card.dataset.pointValue ?? 0);
+        if (!id) {
+          return;
+        }
+        const selectedByOne = isSelectedByPlayer("one", id);
+        const selectedByTwo = isSelectedByPlayer("two", id);
+        const alreadySelected = selectedByOne || selectedByTwo;
+        if (!allowDuplicateSelection && alreadySelected) {
+          return;
+        }
+        if (this.pointsRemaining[this.activeDraftPlayer] - value < 0) {
+          return;
+        }
+        const currentSelections = this.selectedCharacters[this.activeDraftPlayer];
+        const isSelectedByActive = currentSelections.includes(id);
+        if (allowDuplicateSelection) {
+          if (isSelectedByActive) {
+            currentSelections.splice(currentSelections.indexOf(id), 1);
+            this.pointsRemaining[this.activeDraftPlayer] += value;
+            updateDraftUI();
+            return;
+          }
+          currentSelections.push(id);
+          this.pointsRemaining[this.activeDraftPlayer] -= value;
+          updateDraftUI();
+          return;
+        }
+        if (isSelectedByActive) {
+          return;
+        }
+        currentSelections.push(id);
+        this.pointsRemaining[this.activeDraftPlayer] -= value;
+        const otherPlayer: DraftPlayer = this.activeDraftPlayer === "one" ? "two" : "one";
+        if (canPlayerPick(otherPlayer)) {
+          this.activeDraftPlayer = otherPlayer;
+        } else if (!canPlayerPick(this.activeDraftPlayer)) {
+          this.activeDraftPlayer = otherPlayer;
+        }
+        updateDraftUI();
+      });
+    });
+
+    updateDraftUI();
   }
 
   private renderRules(root: Element) {
