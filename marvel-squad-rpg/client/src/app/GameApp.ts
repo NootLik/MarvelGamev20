@@ -1,6 +1,6 @@
 import { routes } from "./routes";
 
-type ScreenView = "title" | "characters";
+type ScreenView = "title" | "characters" | "lobby";
 
 type CharacterProfile = {
   name: string;
@@ -284,6 +284,11 @@ export class GameApp {
       return;
     }
 
+    if (this.currentScreen === "lobby") {
+      this.renderLobby(root);
+      return;
+    }
+
     this.renderCharacters(root);
   }
 
@@ -298,7 +303,7 @@ export class GameApp {
             <p class="title-screen__subtitle">Choose how you want to play.</p>
           </header>
           <nav class="title-screen__menu" aria-label="Main menu">
-            <button class="title-screen__button" type="button">Player vs Player</button>
+            <button class="title-screen__button" type="button" data-action="open-lobby">Player vs Player</button>
             <button class="title-screen__button" type="button">Computer vs Computer</button>
             <button class="title-screen__button" type="button" data-action="open-characters">
               Available Characters
@@ -316,6 +321,140 @@ export class GameApp {
 
     const button = root.querySelector<HTMLButtonElement>("[data-action='open-characters']");
     button?.addEventListener("click", () => {
+      this.currentScreen = "characters";
+      this.render(root);
+    });
+
+    const lobbyButton = root.querySelector<HTMLButtonElement>("[data-action='open-lobby']");
+    lobbyButton?.addEventListener("click", () => {
+      this.currentScreen = "lobby";
+      this.render(root);
+    });
+  }
+
+  private renderLobby(root: Element) {
+    root.innerHTML = `
+      <main class="app-shell lobby-screen">
+        <div class="lobby-screen__overlay"></div>
+        <section class="lobby-screen__content">
+          <header class="lobby-screen__header">
+            <div>
+              <p class="title-screen__eyebrow">Marvel Squad RPG</p>
+              <h1 class="lobby-screen__title">Player vs Player Lobby</h1>
+              <p class="lobby-screen__subtitle">
+                Securely connect through Cloudflare Tunnel and confirm match settings before you draft.
+              </p>
+            </div>
+            <div class="lobby-screen__actions">
+              <button class="title-screen__button" type="button" data-action="cancel-game">
+                Cancel Game
+              </button>
+              <button
+                class="title-screen__button lobby-screen__button-next"
+                type="button"
+                data-action="open-characters"
+              >
+                Character Selection
+              </button>
+            </div>
+          </header>
+
+          <section class="lobby-screen__panel" aria-label="Cloudflare setup">
+            <h2>Cloudflare Setup (Secure by Default)</h2>
+            <ol class="lobby-screen__instructions">
+              <li>Install Cloudflare Warp: <span class="lobby-screen__accent">https://one.one.one.one/</span></li>
+              <li>Create a free Cloudflare account and enroll in Zero Trust.</li>
+              <li>Install cloudflared and run a named tunnel for this match.</li>
+              <li>Share the generated tunnel URL with your opponent (never your raw IP).</li>
+              <li>Require short-lived tokens and rotate tunnel credentials after each session.</li>
+            </ol>
+            <div class="lobby-screen__note">
+              <strong>Security tip:</strong> Keep the tunnel private, use multi-factor authentication, and disable the
+              tunnel when the match ends.
+            </div>
+          </section>
+
+          <section class="lobby-screen__grid" aria-label="Match settings and connection status">
+            <div class="lobby-screen__panel">
+              <h2>Game Settings</h2>
+              <div class="lobby-screen__form">
+                <label>
+                  Map
+                  <select>
+                    <option>Stark Tower Atrium</option>
+                    <option>Madripoor Backstreets</option>
+                    <option>Helicarrier Hangar</option>
+                    <option>Xavier Institute</option>
+                    <option>Quantum Realm Rift</option>
+                  </select>
+                </label>
+                <label>
+                  Map Size
+                  <select>
+                    <option>Compact</option>
+                    <option>Standard</option>
+                    <option>Large</option>
+                    <option>Massive</option>
+                  </select>
+                </label>
+                <label>
+                  Total Team Points
+                  <select>
+                    <option>15</option>
+                    <option>20</option>
+                    <option>25</option>
+                    <option>30</option>
+                  </select>
+                </label>
+                <label>
+                  Game Type
+                  <select>
+                    <option>Skirmish</option>
+                    <option>Capture the Relic</option>
+                    <option>King of the Hill</option>
+                    <option>Escort</option>
+                    <option>Survival</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="lobby-screen__panel">
+              <h2>Cloudflare Connection</h2>
+              <div class="lobby-screen__connection">
+                <div>
+                  <h3>Player One (You)</h3>
+                  <p class="lobby-screen__status lobby-screen__status--online">Tunnel: Connected</p>
+                  <p>Warp Client: Protected</p>
+                  <p>Public IP (masked): 203.0.113.xxx</p>
+                  <p>Latency: 32 ms · Throughput: 48 Mbps</p>
+                </div>
+                <div>
+                  <h3>Player Two</h3>
+                  <p class="lobby-screen__status lobby-screen__status--online">Tunnel: Connected</p>
+                  <p>Warp Client: Protected</p>
+                  <p>Public IP (masked): 198.51.100.xxx</p>
+                  <p>Latency: 41 ms · Throughput: 41 Mbps</p>
+                </div>
+              </div>
+              <div class="lobby-screen__note">
+                Diagnostics are shared to verify the tunnel is healthy without exposing real IP addresses.
+              </div>
+            </div>
+          </section>
+        </section>
+        <audio class="lobby-screen__music" src="/assets/title-theme.mp4" autoplay loop></audio>
+      </main>
+    `;
+
+    const cancelButton = root.querySelector<HTMLButtonElement>("[data-action='cancel-game']");
+    cancelButton?.addEventListener("click", () => {
+      this.currentScreen = "title";
+      this.render(root);
+    });
+
+    const proceedButton = root.querySelector<HTMLButtonElement>("[data-action='open-characters']");
+    proceedButton?.addEventListener("click", () => {
       this.currentScreen = "characters";
       this.render(root);
     });
