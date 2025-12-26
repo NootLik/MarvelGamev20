@@ -7,6 +7,7 @@ type DraftSettings = {
   seeOpponentSelection: boolean;
   allowDuplicateSelection: boolean;
 };
+type CpuRosterSelection = "random" | "player";
 
 type CharacterProfile = {
   name: string;
@@ -285,6 +286,7 @@ export class GameApp {
   private readyState = { playerOne: false, playerTwo: false };
   private playerHighlightColor = "#e53935";
   private cpuDifficulty = "Veteran";
+  private cpuRosterSelection: CpuRosterSelection = "random";
 
   constructor(private readonly selector: string) {}
 
@@ -663,6 +665,13 @@ export class GameApp {
                   </select>
                 </label>
                 <label>
+                  Computer Roster Selection
+                  <select data-setting="cpu-roster">
+                    <option value="random">Random</option>
+                    <option value="player">Player Chosen</option>
+                  </select>
+                </label>
+                <label>
                   Player Highlight Color
                   <input type="color" data-setting="player-color" aria-label="Player highlight color" />
                 </label>
@@ -696,6 +705,12 @@ export class GameApp {
       this.draftSettings = { seeOpponentSelection, allowDuplicateSelection };
       this.draftOrigin = "cpu-setup";
       this.characterSelectionMode = "draft";
+      const rosterSelect = root.querySelector<HTMLSelectElement>("[data-setting='cpu-roster']");
+      this.cpuRosterSelection = (rosterSelect?.value ?? "random") as CpuRosterSelection;
+      if (this.cpuRosterSelection === "random") {
+        this.generateCpuRoster();
+        this.activeDraftPlayer = "one";
+      }
       this.currentScreen = "characters";
       this.render(root);
     });
@@ -704,6 +719,7 @@ export class GameApp {
     const seeOpponentSelect = root.querySelector<HTMLSelectElement>("[data-setting='see-opponent']");
     const allowDuplicateSelect = root.querySelector<HTMLSelectElement>("[data-setting='allow-duplicate']");
     const cpuDifficultySelect = root.querySelector<HTMLSelectElement>("[data-setting='cpu-difficulty']");
+    const cpuRosterSelect = root.querySelector<HTMLSelectElement>("[data-setting='cpu-roster']");
     if (pointsSelect) {
       pointsSelect.value = String(this.teamPointCap);
       pointsSelect.addEventListener("change", () => {
@@ -735,6 +751,13 @@ export class GameApp {
       });
     }
 
+    if (cpuRosterSelect) {
+      cpuRosterSelect.value = this.cpuRosterSelection;
+      cpuRosterSelect.addEventListener("change", () => {
+        this.cpuRosterSelection = cpuRosterSelect.value as CpuRosterSelection;
+      });
+    }
+
     const playerColorInput = root.querySelector<HTMLInputElement>("[data-setting='player-color']");
     if (playerColorInput) {
       playerColorInput.value = this.playerHighlightColor;
@@ -748,11 +771,17 @@ export class GameApp {
     const isDraft = this.characterSelectionMode === "draft";
     const showOpponentSelection = this.draftSettings.seeOpponentSelection;
     const allowDuplicateSelection = this.draftSettings.allowDuplicateSelection;
+    const isCpuSetup = this.draftOrigin === "cpu-setup";
+    const isCpuRandom = isCpuSetup && this.cpuRosterSelection === "random";
+    const showPlayerToggle = isCpuSetup && this.cpuRosterSelection === "player";
     const playerColors = {
       one: [this.playerHighlightColor, this.playerHighlightColor],
       two: ["#1e88e5", "#43a047"],
     };
     const draftBackLabel = this.draftOrigin === "cpu-setup" ? "Back to Game Setup" : "Back to Lobby";
+    if (isCpuRandom) {
+      this.activeDraftPlayer = "one";
+    }
 
     const isSelectedByPlayer = (player: DraftPlayer, id: string) =>
       this.selectedCharacters[player].includes(id);
@@ -761,7 +790,8 @@ export class GameApp {
       const palette = playerColors[player];
       return palette[Math.max(index, 0) % palette.length];
     };
-    const playerLabel = (player: DraftPlayer) => (player === "one" ? "Player One" : "Player Two");
+    const playerLabel = (player: DraftPlayer) =>
+      isCpuSetup ? (player === "one" ? "Player" : "Computer") : player === "one" ? "Player One" : "Player Two";
     const canPlayerPick = (player: DraftPlayer) =>
       CHARACTER_ROSTER.some((character) => {
         const id = slugify(character.alias);
@@ -898,7 +928,7 @@ export class GameApp {
                     </div>
                     <div class="character-screen__ready">
                       ${
-                        allowDuplicateSelection
+                        showPlayerToggle
                           ? `
                             <div class="character-screen__player-toggle" role="group" aria-label="Active player selection">
                               <button
@@ -907,7 +937,7 @@ export class GameApp {
                                 data-action="set-active-player"
                                 data-player="one"
                               >
-                                Editing: Player One
+                                Selecting: Player
                               </button>
                               <button
                                 class="title-screen__button character-screen__player-button"
@@ -915,7 +945,7 @@ export class GameApp {
                                 data-action="set-active-player"
                                 data-player="two"
                               >
-                                Editing: Player Two
+                                Selecting: Computer
                               </button>
                             </div>
                           `
@@ -931,7 +961,7 @@ export class GameApp {
                         data-action="toggle-ready"
                         data-player="one"
                       >
-                        Player One Ready
+                        ${playerLabel("one")} Ready
                       </button>
                       <button
                         class="title-screen__button character-screen__ready-button"
@@ -939,7 +969,7 @@ export class GameApp {
                         data-action="toggle-ready"
                         data-player="two"
                       >
-                        Player Two Ready
+                        ${playerLabel("two")} Ready
                       </button>
                       <button
                         class="title-screen__button character-screen__start-button"
@@ -1006,8 +1036,8 @@ export class GameApp {
           player === "one" ? this.readyState.playerOne : this.readyState.playerTwo;
         button.classList.toggle("character-screen__ready-button--active", isReady);
         button.textContent = isReady
-          ? `${player === "one" ? "Player One" : "Player Two"} Ready ✓`
-          : `${player === "one" ? "Player One" : "Player Two"} Ready`;
+          ? `${player === "one" ? playerLabel("one") : playerLabel("two")} Ready ✓`
+          : `${player === "one" ? playerLabel("one") : playerLabel("two")} Ready`;
       });
 
       const allReady = this.readyState.playerOne && this.readyState.playerTwo;
@@ -1113,6 +1143,9 @@ export class GameApp {
           }
           currentSelections.push(id);
           this.pointsRemaining[this.activeDraftPlayer] -= value;
+          if (!showPlayerToggle && this.draftOrigin === "lobby") {
+            this.activeDraftPlayer = this.activeDraftPlayer === "one" ? "two" : "one";
+          }
           updateDraftUI();
           return;
         }
@@ -1121,11 +1154,13 @@ export class GameApp {
         }
         currentSelections.push(id);
         this.pointsRemaining[this.activeDraftPlayer] -= value;
-        const otherPlayer: DraftPlayer = this.activeDraftPlayer === "one" ? "two" : "one";
-        if (canPlayerPick(otherPlayer)) {
-          this.activeDraftPlayer = otherPlayer;
-        } else if (!canPlayerPick(this.activeDraftPlayer)) {
-          this.activeDraftPlayer = otherPlayer;
+        if (!isCpuRandom) {
+          const otherPlayer: DraftPlayer = this.activeDraftPlayer === "one" ? "two" : "one";
+          if (canPlayerPick(otherPlayer)) {
+            this.activeDraftPlayer = otherPlayer;
+          } else if (!canPlayerPick(this.activeDraftPlayer)) {
+            this.activeDraftPlayer = otherPlayer;
+          }
         }
         updateDraftUI();
       });
@@ -1139,6 +1174,24 @@ export class GameApp {
     this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
     this.activeDraftPlayer = "one";
     this.readyState = { playerOne: false, playerTwo: false };
+  }
+
+  private generateCpuRoster() {
+    const shuffled = [...CHARACTER_ROSTER];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    const picks: string[] = [];
+    let remainingPoints = this.teamPointCap;
+    shuffled.forEach((character) => {
+      if (character.pointValue <= remainingPoints) {
+        picks.push(slugify(character.alias));
+        remainingPoints -= character.pointValue;
+      }
+    });
+    this.selectedCharacters.two = picks;
+    this.pointsRemaining.two = remainingPoints;
   }
 
   private renderRules(root: Element) {
