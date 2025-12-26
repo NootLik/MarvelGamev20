@@ -6,6 +6,7 @@ type DraftPlayer = "one" | "two";
 type DraftSettings = {
   seeOpponentSelection: boolean;
   allowDuplicateSelection: boolean;
+  playerColors: { one: string; two: string };
 };
 
 type CharacterProfile = {
@@ -280,6 +281,7 @@ export class GameApp {
   private draftSettings: DraftSettings = {
     seeOpponentSelection: false,
     allowDuplicateSelection: true,
+    playerColors: { one: "#e53935", two: "#1e88e5" },
   };
   private readyState = { playerOne: false, playerTwo: false };
 
@@ -342,6 +344,10 @@ export class GameApp {
 
     const button = root.querySelector<HTMLButtonElement>("[data-action='open-characters']");
     button?.addEventListener("click", () => {
+      this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
+      this.selectedCharacters = { one: [], two: [] };
+      this.activeDraftPlayer = "one";
+      this.readyState = { playerOne: false, playerTwo: false };
       this.characterSelectionMode = "browse";
       this.currentScreen = "characters";
       this.render(root);
@@ -449,6 +455,24 @@ export class GameApp {
                   </select>
                 </label>
                 <label>
+                  Player One Color
+                  <select data-setting="player-one-color">
+                    <option value="#e53935">Red</option>
+                    <option value="#1e88e5">Blue</option>
+                    <option value="#fbc02d">Yellow</option>
+                    <option value="#43a047">Green</option>
+                  </select>
+                </label>
+                <label>
+                  Player Two Color
+                  <select data-setting="player-two-color">
+                    <option value="#1e88e5">Blue</option>
+                    <option value="#e53935">Red</option>
+                    <option value="#fbc02d">Yellow</option>
+                    <option value="#43a047">Green</option>
+                  </select>
+                </label>
+                <label>
                   Game Type
                   <select>
                     <option>Skirmish</option>
@@ -500,6 +524,8 @@ export class GameApp {
       const pointsSelect = root.querySelector<HTMLSelectElement>("[data-setting='team-points']");
       const seeOpponentSelect = root.querySelector<HTMLSelectElement>("[data-setting='see-opponent']");
       const allowDuplicateSelect = root.querySelector<HTMLSelectElement>("[data-setting='allow-duplicate']");
+      const playerOneColorSelect = root.querySelector<HTMLSelectElement>("[data-setting='player-one-color']");
+      const playerTwoColorSelect = root.querySelector<HTMLSelectElement>("[data-setting='player-two-color']");
       this.teamPointCap = Number(pointsSelect?.value ?? 20);
       this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
       this.selectedCharacters = { one: [], two: [] };
@@ -508,7 +534,11 @@ export class GameApp {
       const seeOpponentSelection = (seeOpponentSelect?.value ?? "no") === "yes";
       const allowDuplicateSelection =
         (allowDuplicateSelect?.value ?? "yes") === "yes" || !seeOpponentSelection;
-      this.draftSettings = { seeOpponentSelection, allowDuplicateSelection };
+      const playerColors = {
+        one: playerOneColorSelect?.value ?? this.draftSettings.playerColors.one,
+        two: playerTwoColorSelect?.value ?? this.draftSettings.playerColors.two,
+      };
+      this.draftSettings = { seeOpponentSelection, allowDuplicateSelection, playerColors };
       this.characterSelectionMode = "draft";
       this.currentScreen = "characters";
       this.render(root);
@@ -517,6 +547,8 @@ export class GameApp {
     const pointsSelect = root.querySelector<HTMLSelectElement>("[data-setting='team-points']");
     const seeOpponentSelect = root.querySelector<HTMLSelectElement>("[data-setting='see-opponent']");
     const allowDuplicateSelect = root.querySelector<HTMLSelectElement>("[data-setting='allow-duplicate']");
+    const playerOneColorSelect = root.querySelector<HTMLSelectElement>("[data-setting='player-one-color']");
+    const playerTwoColorSelect = root.querySelector<HTMLSelectElement>("[data-setting='player-two-color']");
     if (pointsSelect) {
       pointsSelect.value = String(this.teamPointCap);
       pointsSelect.addEventListener("change", () => {
@@ -540,6 +572,19 @@ export class GameApp {
       seeOpponentSelect.addEventListener("change", syncSelectionSettings);
       allowDuplicateSelect.addEventListener("change", syncSelectionSettings);
     }
+
+    if (playerOneColorSelect && playerTwoColorSelect) {
+      playerOneColorSelect.value = this.draftSettings.playerColors.one;
+      playerTwoColorSelect.value = this.draftSettings.playerColors.two;
+      const syncPlayerColors = () => {
+        this.draftSettings.playerColors = {
+          one: playerOneColorSelect.value,
+          two: playerTwoColorSelect.value,
+        };
+      };
+      playerOneColorSelect.addEventListener("change", syncPlayerColors);
+      playerTwoColorSelect.addEventListener("change", syncPlayerColors);
+    }
   }
 
   private renderCharacters(root: Element) {
@@ -547,17 +592,13 @@ export class GameApp {
     const showOpponentSelection = this.draftSettings.seeOpponentSelection;
     const allowDuplicateSelection = this.draftSettings.allowDuplicateSelection;
     const playerColors = {
-      one: ["#e53935", "#fbc02d"],
-      two: ["#1e88e5", "#43a047"],
+      one: this.draftSettings.playerColors.one,
+      two: this.draftSettings.playerColors.two,
     };
 
     const isSelectedByPlayer = (player: DraftPlayer, id: string) =>
       this.selectedCharacters[player].includes(id);
-    const getSelectionColor = (player: DraftPlayer, id: string) => {
-      const index = this.selectedCharacters[player].indexOf(id);
-      const palette = playerColors[player];
-      return palette[Math.max(index, 0) % palette.length];
-    };
+    const getSelectionColor = (player: DraftPlayer) => playerColors[player];
     const playerLabel = (player: DraftPlayer) => (player === "one" ? "Player One" : "Player Two");
     const canPlayerPick = (player: DraftPlayer) =>
       CHARACTER_ROSTER.some((character) => {
@@ -584,11 +625,11 @@ export class GameApp {
       const isSelected = showPlayerOne || showPlayerTwo;
       const isContested = showPlayerOne && showPlayerTwo;
       const selectionColor = showPlayerOne
-        ? getSelectionColor("one", slug)
+        ? getSelectionColor("one")
         : showPlayerTwo
-          ? getSelectionColor("two", slug)
+          ? getSelectionColor("two")
           : undefined;
-      const secondaryColor = showPlayerOne && showPlayerTwo ? getSelectionColor("two", slug) : undefined;
+      const secondaryColor = showPlayerOne && showPlayerTwo ? getSelectionColor("two") : undefined;
       const alreadySelected =
         isSelectedByPlayer("one", slug) || isSelectedByPlayer("two", slug);
       const cannotAfford = this.pointsRemaining[this.activeDraftPlayer] - character.pointValue < 0;
@@ -768,6 +809,10 @@ export class GameApp {
 
     const backButton = root.querySelector<HTMLButtonElement>("[data-action='back-screen']");
     backButton?.addEventListener("click", () => {
+      this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
+      this.selectedCharacters = { one: [], two: [] };
+      this.activeDraftPlayer = "one";
+      this.readyState = { playerOne: false, playerTwo: false };
       this.currentScreen = isDraft ? "lobby" : "title";
       this.render(root);
     });
@@ -827,11 +872,11 @@ export class GameApp {
         const showPlayerOne = selectedByOne && (showOpponentSelection || this.activeDraftPlayer === "one");
         const showPlayerTwo = selectedByTwo && (showOpponentSelection || this.activeDraftPlayer === "two");
         const selectionColor = showPlayerOne
-          ? getSelectionColor("one", id)
+          ? getSelectionColor("one")
           : showPlayerTwo
-            ? getSelectionColor("two", id)
+            ? getSelectionColor("two")
             : undefined;
-        const secondaryColor = showPlayerOne && showPlayerTwo ? getSelectionColor("two", id) : undefined;
+        const secondaryColor = showPlayerOne && showPlayerTwo ? getSelectionColor("two") : undefined;
         const isSelected = Boolean(showPlayerOne || showPlayerTwo);
         const alreadySelected = selectedByOne || selectedByTwo;
         const cannotAfford = this.pointsRemaining[this.activeDraftPlayer] - value < 0;
