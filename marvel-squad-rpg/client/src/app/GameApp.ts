@@ -258,11 +258,76 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
   },
 ];
 
+const TRAIT_DESCRIPTIONS: Record<string, string> = {
+  "Spider-Sense": "Automatically reacts first to sudden threats, reducing ambush penalties.",
+  "Web-Slinging": "Traverses the battlefield quickly and can reposition without spending extra stamina.",
+  Agile: "Dodges incoming attacks more often, boosting evasion against heavy hitters.",
+  "Genius Intellect": "Unlocks tactical rerolls and improves team strategy checks.",
+  "Master Tracker": "Reveals hidden foes and boosts accuracy against marked targets.",
+  "Predator Tactics": "Gains bonus damage when striking isolated or fleeing enemies.",
+  "Savage Instincts": "Shrugs off crowd control and deals extra damage at low health.",
+  "Vibranium Shield": "Blocks ranged attacks and reflects a portion of damage back.",
+  "Tactical Genius": "Improves team initiative and grants a bonus action once per encounter.",
+  "Unbreakable Will": "Resists psychic effects and keeps morale steady under pressure.",
+  "Aerial Assault": "Strikes from above, ignoring ground hazards and melee counters.",
+  "Winged Rig": "Maintains superior mobility and grants a short hover to avoid traps.",
+  "Recon Specialist": "Highlights enemy weak points, boosting ally critical chances.",
+  Regenerative: "Rapidly restores health between turns and mitigates bleed effects.",
+  "Savage Strength": "Delivers crushing melee blows that can stagger tougher foes.",
+  "Reptilian Instincts": "Gains heightened senses to detect stealth and trap setups.",
+  "Radar Sense": "Automatically detects hidden threats and reduces surprise damage.",
+  "Martial Arts": "Chains swift strikes together, increasing combo damage.",
+  Fearless: "Immune to fear effects and gains attack power when outnumbered.",
+  "Adamantium Claws": "Pierces armor and ignores a portion of enemy defense.",
+  Regeneration: "Heals each round and shortens negative status durations.",
+  Berserker: "Deals escalating damage as health drops, but defense dips slightly.",
+  "Heavy Arsenal": "Access to high-impact ranged attacks with splash damage.",
+  "Tactical Ops": "Grants a utility gadget that can disable or debuff enemies.",
+  Relentless: "Keeps pressing attacks, reducing stamina costs for follow-up strikes.",
+  "Combat Shield": "Raises guard to reduce incoming damage and protect nearby allies.",
+  "Enhanced Physique": "Boosts strength and endurance, improving damage and durability.",
+  "Command Training": "Provides team buffs that enhance accuracy and defense.",
+  "Optic Blast": "Powerful ranged beam that pierces through multiple targets.",
+  "Team Leader": "Increases squad cohesion, granting small bonuses to all allies.",
+  "Precision Control": "Improves accuracy and minimizes collateral damage from powers.",
+  "Improvised Weapons": "Finds usable gear mid-fight for surprise damage boosts.",
+  "Ambush Tactics": "Opens fights with a high-damage strike before enemies react.",
+  "Field Training": "Versatile support that improves adaptability and defense.",
+  "Energy Sidearm": "Reliable ranged attack that ignores light armor.",
+  "Team Support": "Provides quick heals or buffs to stabilize allies.",
+  "Tactical Gear": "Deploys tools that enhance mobility or defense.",
+  "Paid Precision": "Focuses on high-value targets for increased accuracy and crits.",
+  "High Mobility": "Quickly repositions to flank or escape danger.",
+  "Stealth Mastery": "Avoids detection and gains bonus damage from stealth.",
+  "Smoke Bombs": "Creates cover to reduce enemy accuracy and break targeting.",
+  "Blade Work": "Expert melee slashes that bleed targets over time.",
+  "Field Discipline": "Maintains steady defense and reduces incoming status effects.",
+  "Rifle Training": "Improves long-range accuracy and headshot potential.",
+  "Armor Kit": "Adds extra plating to reduce sustained damage.",
+  "Sai Mastery": "Swift dual-weapon strikes that bypass light armor.",
+  "Assassin Training": "Excels at eliminating priority targets quickly.",
+  "Silent Footwork": "Moves without alerting enemies, improving ambush success.",
+  "Adhesive Blasts": "Pins foes in place, reducing their mobility.",
+  Improviser: "Adapts to the situation, gaining a bonus to random checks.",
+  "Sticky Traps": "Sets hazards that slow or root approaching enemies.",
+  "Super Leap": "Vaults over obstacles to reach backline targets.",
+  "Tongue Lash": "Pulls enemies closer, disrupting their formation.",
+  Acrobatic: "Evades area attacks with nimble movement.",
+  "Flame Control": "Deals burning damage and clears enemy cover.",
+  "Area Denial": "Forces foes to reposition, controlling the battlefield.",
+  "Fear Tactics": "Applies fear to weaken enemy attacks.",
+  "Plasmoid Bursts": "Delivers explosive energy damage in a small radius.",
+  "Team Booster": "Increases ally morale, boosting speed and accuracy.",
+  "Quick Learner": "Gains a small stat boost each turn as the fight progresses.",
+};
+
 const slugify = (value: string) =>
   value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+
+const escapeAttribute = (value: string) => value.replace(/"/g, "&quot;");
 
 export class GameApp {
   private currentScreen: ScreenView = "title";
@@ -926,6 +991,23 @@ export class GameApp {
         cannotAfford ||
         (!allowDuplicateSelection && alreadySelected) ||
         (allowDuplicateSelection && isSelectedByPlayer(this.activeDraftPlayer, slug));
+      const traitsMarkup = character.traits
+        .map((trait) => {
+          const description = TRAIT_DESCRIPTIONS[trait] ?? "Trait details unavailable.";
+          const tooltip = escapeAttribute(description);
+          return `
+            <span
+              class="character-card__trait"
+              tabindex="0"
+              role="button"
+              aria-label="${trait}: ${tooltip}"
+              data-tooltip="${tooltip}"
+            >
+              ${trait}
+            </span>
+          `;
+        })
+        .join("");
 
       return `
         <article
@@ -975,7 +1057,11 @@ export class GameApp {
             </div>
             <div class="character-card__traits">
               <dt>Traits</dt>
-              <dd>${character.traits.join(", ")}</dd>
+              <dd>
+                <div class="character-card__traits-list">
+                  ${traitsMarkup}
+                </div>
+              </dd>
             </div>
           </dl>
         </article>
