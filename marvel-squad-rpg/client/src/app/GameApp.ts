@@ -1,4 +1,5 @@
 import { routes } from "./routes";
+import { WsClient } from "../net/wsClient";
 
 type ScreenView = "title" | "characters" | "lobby" | "pvc-lobby" | "rules";
 
@@ -345,6 +346,9 @@ export class GameApp {
   private playerHighlightColor = "#e53935";
   private cpuDifficulty = "Veteran";
   private cpuRosterSelection: CpuRosterSelection = "random";
+  private wsClient?: WsClient;
+  private playerId: DraftPlayer | null = null;
+  private roomId = "local";
 
   constructor(private readonly selector: string) {}
 
@@ -354,7 +358,76 @@ export class GameApp {
       throw new Error(`Root element not found: ${this.selector}`);
     }
 
+    this.setupLobbyConnection();
     this.render(root);
+  }
+
+  private setupLobbyConnection() {
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const serverPort = window.location.port === "5173" ? "8000" : window.location.port;
+    const serverHost = serverPort ? `${window.location.hostname}:${serverPort}` : window.location.hostname;
+    const url = `${protocol}://${serverHost}/ws/lobby?room=${encodeURIComponent(this.roomId)}`;
+    this.wsClient = new WsClient({ url });
+    this.wsClient.onMessage((message) => this.handleLobbyMessage(message));
+    this.wsClient.connect();
+  }
+
+  private handleLobbyMessage(message: { type?: string; payload?: any }) {
+    if (message.type !== "state") {
+      return;
+    }
+    const payload = message.payload ?? {};
+    const settings = payload.settings ?? {};
+    this.playerId = (payload.playerId as DraftPlayer) ?? this.playerId;
+    this.teamPointCap = Number(settings.teamPointCap ?? this.teamPointCap);
+    this.draftSettings = {
+      seeOpponentSelection: Boolean(settings.seeOpponentSelection),
+      allowDuplicateSelection: Boolean(settings.allowDuplicateSelection),
+    };
+
+    const selections = payload.selections ?? {};
+    const ready = payload.ready ?? {};
+    if (this.playerId === "one") {
+      this.selectedCharacters = {
+        one: selections.self ?? [],
+        two: selections.opponent ?? [],
+      };
+      this.readyState = {
+        playerOne: Boolean(ready.self),
+        playerTwo: Boolean(ready.opponent),
+      };
+    } else if (this.playerId === "two") {
+      this.selectedCharacters = {
+        one: selections.opponent ?? [],
+        two: selections.self ?? [],
+      };
+      this.readyState = {
+        playerOne: Boolean(ready.opponent),
+        playerTwo: Boolean(ready.self),
+      };
+    }
+    this.syncPointsRemaining();
+    const root = document.querySelector(this.selector);
+    if (root) {
+      this.render(root);
+    }
+  }
+
+  private sendLobbyMessage(type: string, payload: Record<string, unknown>) {
+    this.wsClient?.send({ type, payload });
+  }
+
+  private syncPointsRemaining() {
+    const totals = {
+      one: this.teamPointCap,
+      two: this.teamPointCap,
+    };
+    const rosterValue = new Map(CHARACTER_ROSTER.map((character) => [slugify(character.alias), character.pointValue]));
+    (["one", "two"] as DraftPlayer[]).forEach((player) => {
+      const spent = this.selectedCharacters[player].reduce((sum, id) => sum + (rosterValue.get(id) ?? 0), 0);
+      totals[player] = Math.max(this.teamPointCap - spent, 0);
+    });
+    this.pointsRemaining = totals;
   }
 
   private render(root: Element) {
@@ -442,6 +515,9 @@ export class GameApp {
   }
 
   private renderLobby(root: Element) {
+    const playerIndicator = this.playerId
+      ? `You are: ${this.playerId === "two" ? "Player Two" : "Player One"}`
+      : "Waiting for player slot...";
     root.innerHTML = `
       <main class="app-shell lobby-screen">
         <div class="lobby-screen__overlay"></div>
@@ -453,6 +529,7 @@ export class GameApp {
               <p class="lobby-screen__subtitle">
                 Securely connect through Cloudflare Tunnel and confirm match settings before you draft.
               </p>
+              <p class="lobby-screen__player-indicator">${playerIndicator}</p>
             </div>
             <div class="lobby-screen__actions">
               <button class="title-screen__button" type="button" data-action="cancel-game">
@@ -594,6 +671,12 @@ export class GameApp {
       const allowDuplicateSelection =
         (allowDuplicateSelect?.value ?? "yes") === "yes" || !seeOpponentSelection;
       this.draftSettings = { seeOpponentSelection, allowDuplicateSelection };
+      this.sendLobbyMessage("settings:update", {
+        teamPointCap: this.teamPointCap,
+        seeOpponentSelection,
+        allowDuplicateSelection,
+      });
+      this.sendLobbyMessage("draft:reset", {});
       this.draftOrigin = "lobby";
       this.characterSelectionMode = "draft";
       this.currentScreen = "characters";
@@ -607,6 +690,7 @@ export class GameApp {
       pointsSelect.value = String(this.teamPointCap);
       pointsSelect.addEventListener("change", () => {
         this.teamPointCap = Number(pointsSelect.value);
+        this.sendLobbyMessage("settings:update", { teamPointCap: this.teamPointCap });
       });
     }
 
@@ -621,6 +705,11 @@ export class GameApp {
         if (!seeOpponent) {
           allowDuplicateSelect.value = "yes";
         }
+        const allowDuplicate = allowDuplicateSelect.value === "yes" || !seeOpponent;
+        this.sendLobbyMessage("settings:update", {
+          seeOpponentSelection: seeOpponent,
+          allowDuplicateSelection: allowDuplicate,
+        });
       };
 
       seeOpponentSelect.addEventListener("change", syncSelectionSettings);
@@ -935,13 +1024,20 @@ export class GameApp {
     const isCpuSetup = this.draftOrigin === "cpu-setup";
     const isCpuRandom = isCpuSetup && this.cpuRosterSelection === "random";
     const showPlayerToggle = isCpuSetup && this.cpuRosterSelection === "player";
+    const isNetworkMatch = this.draftOrigin === "lobby";
     const playerColors = {
       one: [this.playerHighlightColor, this.playerHighlightColor],
       two: ["#1e88e5", "#43a047"],
     };
     const draftBackLabel = this.draftOrigin === "cpu-setup" ? "Back to Game Setup" : "Back to Lobby";
+    const networkPlayerLabel = this.playerId === "two" ? "Player Two" : "Player One";
+    const networkOpponentLabel = this.playerId === "two" ? "Player One" : "Player Two";
+    const networkIndicator = this.playerId ? `You are: ${networkPlayerLabel}` : "Waiting for player slot...";
     if (isCpuRandom) {
       this.activeDraftPlayer = "one";
+    }
+    if (isNetworkMatch && this.playerId) {
+      this.activeDraftPlayer = this.playerId;
     }
 
     const isSelectedByPlayer = (player: DraftPlayer, id: string) =>
@@ -1079,6 +1175,7 @@ export class GameApp {
               <p class="character-screen__subtitle">
                 Point value balances fair team builds. Each match has a maximum point cap for team totals.
               </p>
+              ${isNetworkMatch ? `<p class="character-screen__player-indicator">${networkIndicator}</p>` : ""}
             </div>
             <div class="character-screen__actions">
               ${
@@ -1137,30 +1234,56 @@ export class GameApp {
                             </div>
                           `
                       }
-                      <button
-                        class="title-screen__button character-screen__ready-button"
-                        type="button"
-                        data-action="toggle-ready"
-                        data-player="one"
-                      >
-                        ${playerLabel("one")} Ready
-                      </button>
-                      <button
-                        class="title-screen__button character-screen__ready-button"
-                        type="button"
-                        data-action="toggle-ready"
-                        data-player="two"
-                      >
-                        ${playerLabel("two")} Ready
-                      </button>
-                      <button
-                        class="title-screen__button character-screen__start-button"
-                        type="button"
-                        data-action="start-game"
-                        disabled
-                      >
-                        Waiting on other player
-                      </button>
+                      ${
+                        isNetworkMatch
+                          ? `
+                            <button
+                              class="title-screen__button character-screen__ready-button"
+                              type="button"
+                              data-action="toggle-ready"
+                              data-player="self"
+                            >
+                              ${networkPlayerLabel} Ready
+                            </button>
+                            <div class="character-screen__ready-status" data-role="opponent-ready">
+                              ${networkOpponentLabel} not ready
+                            </div>
+                            <button
+                              class="title-screen__button character-screen__start-button"
+                              type="button"
+                              data-action="start-game"
+                              disabled
+                            >
+                              Waiting on other player
+                            </button>
+                          `
+                          : `
+                            <button
+                              class="title-screen__button character-screen__ready-button"
+                              type="button"
+                              data-action="toggle-ready"
+                              data-player="one"
+                            >
+                              ${playerLabel("one")} Ready
+                            </button>
+                            <button
+                              class="title-screen__button character-screen__ready-button"
+                              type="button"
+                              data-action="toggle-ready"
+                              data-player="two"
+                            >
+                              ${playerLabel("two")} Ready
+                            </button>
+                            <button
+                              class="title-screen__button character-screen__start-button"
+                              type="button"
+                              data-action="start-game"
+                              disabled
+                            >
+                              Waiting on other player
+                            </button>
+                          `
+                      }
                     </div>
                   `
                   : ""
@@ -1184,7 +1307,9 @@ export class GameApp {
     const backButton = root.querySelector<HTMLButtonElement>("[data-action='back-screen']");
     backButton?.addEventListener("click", () => {
       if (isDraft) {
-        this.resetDraftSelections();
+        if (!isNetworkMatch) {
+          this.resetDraftSelections();
+        }
         this.currentScreen = this.draftOrigin === "cpu-setup" ? "cpu-setup" : "lobby";
       } else {
         this.currentScreen = "title";
@@ -1199,6 +1324,7 @@ export class GameApp {
     const pointsRemainingEls = root.querySelectorAll<HTMLElement>("[data-role='points-remaining']");
     const pointsLabel = root.querySelector<HTMLElement>("[data-role='points-label']");
     const readyButtons = root.querySelectorAll<HTMLButtonElement>("[data-action='toggle-ready']");
+    const opponentReadyStatus = root.querySelector<HTMLElement>("[data-role='opponent-ready']");
     const playerButtons = root.querySelectorAll<HTMLButtonElement>("[data-action='set-active-player']");
     const startButton = root.querySelector<HTMLButtonElement>("[data-action='start-game']");
     const cardElements = Array.from(root.querySelectorAll<HTMLElement>(".character-card"));
@@ -1215,17 +1341,30 @@ export class GameApp {
       readyButtons.forEach((button) => {
         const player = button.dataset.player;
         const isReady =
-          player === "one" ? this.readyState.playerOne : this.readyState.playerTwo;
+          player === "self"
+            ? this.playerId === "two"
+              ? this.readyState.playerTwo
+              : this.readyState.playerOne
+            : player === "one"
+              ? this.readyState.playerOne
+              : this.readyState.playerTwo;
         button.classList.toggle("character-screen__ready-button--active", isReady);
         button.textContent = isReady
-          ? `${player === "one" ? playerLabel("one") : playerLabel("two")} Ready ✓`
-          : `${player === "one" ? playerLabel("one") : playerLabel("two")} Ready`;
+          ? `${player === "self" ? networkPlayerLabel : player === "one" ? playerLabel("one") : playerLabel("two")} Ready ✓`
+          : `${player === "self" ? networkPlayerLabel : player === "one" ? playerLabel("one") : playerLabel("two")} Ready`;
       });
 
       const allReady = this.readyState.playerOne && this.readyState.playerTwo;
       if (startButton) {
         startButton.disabled = !allReady;
         startButton.textContent = allReady ? "Start Game" : "Waiting on other player";
+      }
+
+      if (opponentReadyStatus && isNetworkMatch) {
+        const opponentReady = this.playerId === "two" ? this.readyState.playerOne : this.readyState.playerTwo;
+        opponentReadyStatus.textContent = opponentReady
+          ? `${networkOpponentLabel} ready ✓`
+          : `${networkOpponentLabel} not ready`;
       }
 
       playerButtons.forEach((button) => {
@@ -1278,7 +1417,15 @@ export class GameApp {
     readyButtons.forEach((button) => {
       button.addEventListener("click", () => {
         const player = button.dataset.player;
-        if (player === "one") {
+        if (player === "self") {
+          if (this.playerId === "two") {
+            this.readyState.playerTwo = !this.readyState.playerTwo;
+            this.sendLobbyMessage("ready:update", { ready: this.readyState.playerTwo });
+          } else {
+            this.readyState.playerOne = !this.readyState.playerOne;
+            this.sendLobbyMessage("ready:update", { ready: this.readyState.playerOne });
+          }
+        } else if (player === "one") {
           this.readyState.playerOne = !this.readyState.playerOne;
         } else {
           this.readyState.playerTwo = !this.readyState.playerTwo;
@@ -1305,28 +1452,38 @@ export class GameApp {
         if (!id) {
           return;
         }
+        if (isNetworkMatch && !this.playerId) {
+          return;
+        }
+        const activePlayer = isNetworkMatch && this.playerId ? this.playerId : this.activeDraftPlayer;
         const selectedByOne = isSelectedByPlayer("one", id);
         const selectedByTwo = isSelectedByPlayer("two", id);
         const alreadySelected = selectedByOne || selectedByTwo;
         if (!allowDuplicateSelection && alreadySelected) {
           return;
         }
-        if (this.pointsRemaining[this.activeDraftPlayer] - value < 0) {
+        if (this.pointsRemaining[activePlayer] - value < 0) {
           return;
         }
-        const currentSelections = this.selectedCharacters[this.activeDraftPlayer];
+        const currentSelections = this.selectedCharacters[activePlayer];
         const isSelectedByActive = currentSelections.includes(id);
         if (allowDuplicateSelection) {
           if (isSelectedByActive) {
             currentSelections.splice(currentSelections.indexOf(id), 1);
-            this.pointsRemaining[this.activeDraftPlayer] += value;
+            this.pointsRemaining[activePlayer] += value;
+            if (isNetworkMatch) {
+              this.sendLobbyMessage("selection:update", { selections: currentSelections });
+            }
             updateDraftUI();
             return;
           }
           currentSelections.push(id);
-          this.pointsRemaining[this.activeDraftPlayer] -= value;
-          if (!showPlayerToggle && this.draftOrigin === "lobby") {
+          this.pointsRemaining[activePlayer] -= value;
+          if (!showPlayerToggle && this.draftOrigin === "lobby" && !isNetworkMatch) {
             this.activeDraftPlayer = this.activeDraftPlayer === "one" ? "two" : "one";
+          }
+          if (isNetworkMatch) {
+            this.sendLobbyMessage("selection:update", { selections: currentSelections });
           }
           updateDraftUI();
           return;
@@ -1335,8 +1492,10 @@ export class GameApp {
           return;
         }
         currentSelections.push(id);
-        this.pointsRemaining[this.activeDraftPlayer] -= value;
-        if (!isCpuRandom) {
+        this.pointsRemaining[activePlayer] -= value;
+        if (isNetworkMatch) {
+          this.sendLobbyMessage("selection:update", { selections: currentSelections });
+        } else if (!isCpuRandom) {
           const otherPlayer: DraftPlayer = this.activeDraftPlayer === "one" ? "two" : "one";
           if (canPlayerPick(otherPlayer)) {
             this.activeDraftPlayer = otherPlayer;
