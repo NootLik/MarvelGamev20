@@ -205,6 +205,13 @@ body {
   box-shadow: 0 12px 25px rgba(67, 160, 71, 0.35);
 }
 
+.character-screen__ready-status {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: rgba(245, 245, 245, 0.12);
+  font-weight: 600;
+}
+
 .character-screen__start-button[disabled] {
   background: rgba(245, 245, 245, 0.35);
   color: rgba(10, 12, 24, 0.6);
