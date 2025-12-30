@@ -515,6 +515,9 @@ export class GameApp {
   }
 
   private renderLobby(root: Element) {
+    const playerIndicator = this.playerId
+      ? `You are: ${this.playerId === "two" ? "Player Two" : "Player One"}`
+      : "Waiting for player slot...";
     root.innerHTML = `
       <main class="app-shell lobby-screen">
         <div class="lobby-screen__overlay"></div>
@@ -526,6 +529,7 @@ export class GameApp {
               <p class="lobby-screen__subtitle">
                 Securely connect through Cloudflare Tunnel and confirm match settings before you draft.
               </p>
+              <p class="lobby-screen__player-indicator">${playerIndicator}</p>
             </div>
             <div class="lobby-screen__actions">
               <button class="title-screen__button" type="button" data-action="cancel-game">
@@ -1028,6 +1032,7 @@ export class GameApp {
     const draftBackLabel = this.draftOrigin === "cpu-setup" ? "Back to Game Setup" : "Back to Lobby";
     const networkPlayerLabel = this.playerId === "two" ? "Player Two" : "Player One";
     const networkOpponentLabel = this.playerId === "two" ? "Player One" : "Player Two";
+    const networkIndicator = this.playerId ? `You are: ${networkPlayerLabel}` : "Waiting for player slot...";
     if (isCpuRandom) {
       this.activeDraftPlayer = "one";
     }
@@ -1170,6 +1175,7 @@ export class GameApp {
               <p class="character-screen__subtitle">
                 Point value balances fair team builds. Each match has a maximum point cap for team totals.
               </p>
+              ${isNetworkMatch ? `<p class="character-screen__player-indicator">${networkIndicator}</p>` : ""}
             </div>
             <div class="character-screen__actions">
               ${
