@@ -11,6 +11,9 @@ class LobbySettings:
     team_point_cap: int = 20
     see_opponent_selection: bool = False
     allow_duplicate_selection: bool = True
+    map_name: str = "Stark Tower Atrium"
+    map_size: str = "Standard"
+    game_type: str = "Skirmish"
 
 
 @dataclass
@@ -58,7 +61,7 @@ def find_player_id(room: RoomState, connection_id: str) -> str | None:
     return None
 
 
-def build_state_payload(room: RoomState, player_id: str) -> dict[str, Any]:
+def build_state_payload(room: RoomState, player_id: str, return_to_lobby: bool = False) -> dict[str, Any]:
     opponent_id = "two" if player_id == "one" else "one"
     show_opponent = room.settings.see_opponent_selection
     selections = {
@@ -79,6 +82,9 @@ def build_state_payload(room: RoomState, player_id: str) -> dict[str, Any]:
                 "teamPointCap": room.settings.team_point_cap,
                 "seeOpponentSelection": room.settings.see_opponent_selection,
                 "allowDuplicateSelection": room.settings.allow_duplicate_selection,
+                "map": room.settings.map_name,
+                "mapSize": room.settings.map_size,
+                "gameType": room.settings.game_type,
             },
             "selections": selections,
             "ready": ready,
@@ -86,16 +92,17 @@ def build_state_payload(room: RoomState, player_id: str) -> dict[str, Any]:
                 "count": len(room.players),
                 "assigned": sorted(room.players.keys()),
             },
+            "returnToLobby": return_to_lobby,
         },
     }
 
 
-async def broadcast_room_state(room: RoomState, manager: ConnectionManager) -> None:
+async def broadcast_room_state(room: RoomState, manager: ConnectionManager, return_to_lobby: bool = False) -> None:
     for connection_id in manager.rooms.get(room.room_id, set()):
         player_id = find_player_id(room, connection_id)
         if not player_id:
             continue
-        await manager.send_json(connection_id, build_state_payload(room, player_id))
+        await manager.send_json(connection_id, build_state_payload(room, player_id, return_to_lobby))
 
 
 async def handle_lobby_message(
@@ -117,6 +124,17 @@ async def handle_lobby_message(
         allow_duplicate = data.get("allowDuplicateSelection")
         if isinstance(allow_duplicate, bool):
             room.settings.allow_duplicate_selection = allow_duplicate
+        if room.settings.see_opponent_selection is False:
+            room.settings.allow_duplicate_selection = True
+        map_name = data.get("map")
+        if isinstance(map_name, str):
+            room.settings.map_name = map_name
+        map_size = data.get("mapSize")
+        if isinstance(map_size, str):
+            room.settings.map_size = map_size
+        game_type = data.get("gameType")
+        if isinstance(game_type, str):
+            room.settings.game_type = game_type
     elif message_type == "selection:update":
         selections = data.get("selections")
         if isinstance(selections, list):
@@ -128,5 +146,10 @@ async def handle_lobby_message(
     elif message_type == "draft:reset":
         room.selections = {"one": [], "two": []}
         room.ready = {"one": False, "two": False}
+    elif message_type == "lobby:return":
+        room.selections = {"one": [], "two": []}
+        room.ready = {"one": False, "two": False}
+        await broadcast_room_state(room, manager, return_to_lobby=True)
+        return
 
     await broadcast_room_state(room, manager)

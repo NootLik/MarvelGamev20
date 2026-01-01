@@ -12,6 +12,7 @@ type CharacterProfile = {
   reaction: number;
   durability: number;
   psychicResistance: number;
+  goodness: number;
   traits: string[];
   accent: string;
 };
@@ -26,6 +27,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 50,
     durability: 18,
     psychicResistance: 12,
+    goodness: 9,
     traits: ["Spider-Sense", "Web-Slinging", "Agile", "Genius Intellect"],
     accent: "#e53935",
   },
@@ -38,6 +40,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 30,
     durability: 14,
     psychicResistance: 8,
+    goodness: -6,
     traits: ["Master Tracker", "Predator Tactics", "Savage Instincts"],
     accent: "#795548",
   },
@@ -50,6 +53,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 36,
     durability: 20,
     psychicResistance: 14,
+    goodness: 10,
     traits: ["Vibranium Shield", "Tactical Genius", "Unbreakable Will"],
     accent: "#1e88e5",
   },
@@ -62,6 +66,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 34,
     durability: 10,
     psychicResistance: 9,
+    goodness: 8,
     traits: ["Aerial Assault", "Winged Rig", "Recon Specialist"],
     accent: "#f4511e",
   },
@@ -74,6 +79,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 24,
     durability: 22,
     psychicResistance: 2,
+    goodness: -8,
     traits: ["Regenerative", "Savage Strength", "Reptilian Instincts"],
     accent: "#43a047",
   },
@@ -86,6 +92,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 40,
     durability: 12,
     psychicResistance: 16,
+    goodness: 9,
     traits: ["Radar Sense", "Martial Arts", "Fearless"],
     accent: "#d32f2f",
   },
@@ -98,6 +105,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 32,
     durability: 28,
     psychicResistance: 14,
+    goodness: 7,
     traits: ["Adamantium Claws", "Regeneration", "Berserker"],
     accent: "#fbc02d",
   },
@@ -110,6 +118,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 22,
     durability: 10,
     psychicResistance: 10,
+    goodness: -3,
     traits: ["Heavy Arsenal", "Tactical Ops", "Relentless"],
     accent: "#455a64",
   },
@@ -122,6 +131,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 30,
     durability: 18,
     psychicResistance: 12,
+    goodness: 2,
     traits: ["Combat Shield", "Enhanced Physique", "Command Training"],
     accent: "#5c6bc0",
   },
@@ -134,6 +144,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 28,
     durability: 12,
     psychicResistance: 14,
+    goodness: 9,
     traits: ["Optic Blast", "Team Leader", "Precision Control"],
     accent: "#3949ab",
   },
@@ -146,6 +157,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 8,
     durability: 6,
     psychicResistance: 4,
+    goodness: -7,
     traits: ["Improvised Weapons", "Ambush Tactics"],
     accent: "#6d4c41",
   },
@@ -158,6 +170,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 18,
     durability: 8,
     psychicResistance: 8,
+    goodness: 6,
     traits: ["Field Training", "Energy Sidearm", "Team Support"],
     accent: "#00897b",
   },
@@ -170,6 +183,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 12,
     durability: 7,
     psychicResistance: 6,
+    goodness: -2,
     traits: ["Tactical Gear", "Paid Precision", "High Mobility"],
     accent: "#546e7a",
   },
@@ -182,6 +196,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 26,
     durability: 6,
     psychicResistance: 6,
+    goodness: -4,
     traits: ["Stealth Mastery", "Smoke Bombs", "Blade Work"],
     accent: "#8e24aa",
   },
@@ -194,6 +209,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 12,
     durability: 8,
     psychicResistance: 5,
+    goodness: 5,
     traits: ["Field Discipline", "Rifle Training", "Armor Kit"],
     accent: "#4e6e5d",
   },
@@ -206,6 +222,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 38,
     durability: 12,
     psychicResistance: 16,
+    goodness: 3,
     traits: ["Sai Mastery", "Assassin Training", "Silent Footwork"],
     accent: "#b71c1c",
   },
@@ -218,6 +235,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 8,
     durability: 8,
     psychicResistance: 6,
+    goodness: -5,
     traits: ["Adhesive Blasts", "Improviser", "Sticky Traps"],
     accent: "#ffa726",
   },
@@ -230,6 +248,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 22,
     durability: 9,
     psychicResistance: 5,
+    goodness: -6,
     traits: ["Super Leap", "Tongue Lash", "Acrobatic"],
     accent: "#7cb342",
   },
@@ -242,6 +261,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 18,
     durability: 10,
     psychicResistance: 8,
+    goodness: -7,
     traits: ["Flame Control", "Area Denial", "Fear Tactics"],
     accent: "#ef6c00",
   },
@@ -254,6 +274,7 @@ const CHARACTER_ROSTER: CharacterProfile[] = [
     reaction: 20,
     durability: 10,
     psychicResistance: 12,
+    goodness: 8,
     traits: ["Plasmoid Bursts", "Team Booster", "Quick Learner"],
     accent: "#f06292",
   },
@@ -344,6 +365,12 @@ export class GameApp {
   };
   private readyState = { playerOne: false, playerTwo: false };
   private playerHighlightColor = "#e53935";
+  private lobbyPlayers = { count: 0, assigned: [] as DraftPlayer[] };
+  private lobbySettings = {
+    map: "Stark Tower Atrium",
+    mapSize: "Standard",
+    gameType: "Skirmish",
+  };
   private cpuDifficulty = "Veteran";
   private cpuRosterSelection: CpuRosterSelection = "random";
   private wsClient?: WsClient;
@@ -380,9 +407,20 @@ export class GameApp {
     const settings = payload.settings ?? {};
     this.playerId = (payload.playerId as DraftPlayer) ?? this.playerId;
     this.teamPointCap = Number(settings.teamPointCap ?? this.teamPointCap);
+    this.lobbySettings = {
+      map: String(settings.map ?? this.lobbySettings.map),
+      mapSize: String(settings.mapSize ?? this.lobbySettings.mapSize),
+      gameType: String(settings.gameType ?? this.lobbySettings.gameType),
+    };
     this.draftSettings = {
       seeOpponentSelection: Boolean(settings.seeOpponentSelection),
-      allowDuplicateSelection: Boolean(settings.allowDuplicateSelection),
+      allowDuplicateSelection:
+        Boolean(settings.allowDuplicateSelection) || !Boolean(settings.seeOpponentSelection),
+    };
+    const players = payload.players ?? {};
+    this.lobbyPlayers = {
+      count: Number(players.count ?? this.lobbyPlayers.count),
+      assigned: Array.isArray(players.assigned) ? players.assigned : this.lobbyPlayers.assigned,
     };
 
     const selections = payload.selections ?? {};
@@ -407,6 +445,19 @@ export class GameApp {
       };
     }
     this.syncPointsRemaining();
+    const returnToLobby = Boolean(payload.returnToLobby);
+    if (returnToLobby) {
+      this.resetDraftSelections();
+      this.characterSelectionMode = "draft";
+      this.draftOrigin = "lobby";
+      this.currentScreen = "lobby";
+    } else if (
+      this.draftOrigin === "lobby" &&
+      this.draftSettings.seeOpponentSelection &&
+      !this.draftSettings.allowDuplicateSelection
+    ) {
+      this.updateAlternatingDraftTurn();
+    }
     const root = document.querySelector(this.selector);
     if (root) {
       this.render(root);
@@ -428,6 +479,40 @@ export class GameApp {
       totals[player] = Math.max(this.teamPointCap - spent, 0);
     });
     this.pointsRemaining = totals;
+  }
+
+  private updateAlternatingDraftTurn() {
+    const canPick = (player: DraftPlayer) => {
+      const rosterValue = new Map(CHARACTER_ROSTER.map((character) => [slugify(character.alias), character.pointValue]));
+      return CHARACTER_ROSTER.some((character) => {
+        const id = slugify(character.alias);
+        const alreadySelected =
+          this.selectedCharacters.one.includes(id) || this.selectedCharacters.two.includes(id);
+        if (alreadySelected) {
+          return false;
+        }
+        return this.pointsRemaining[player] - (rosterValue.get(id) ?? 0) >= 0;
+      });
+    };
+    const hasOnePick = canPick("one");
+    const hasTwoPick = canPick("two");
+    if (!hasOnePick && !hasTwoPick) {
+      return;
+    }
+    if (!hasOnePick) {
+      this.activeDraftPlayer = "two";
+      return;
+    }
+    if (!hasTwoPick) {
+      this.activeDraftPlayer = "one";
+      return;
+    }
+    const selectionDiff = this.selectedCharacters.one.length - this.selectedCharacters.two.length;
+    if (selectionDiff === 0) {
+      this.activeDraftPlayer = "one";
+      return;
+    }
+    this.activeDraftPlayer = selectionDiff < 0 ? "one" : "two";
   }
 
   private render(root: Element) {
@@ -518,6 +603,9 @@ export class GameApp {
     const playerIndicator = this.playerId
       ? `You are: ${this.playerId === "two" ? "Player Two" : "Player One"}`
       : "Waiting for player slot...";
+    const opponentJoined = this.lobbyPlayers.count >= 2;
+    const opponentIndicator = opponentJoined ? "Opponent joined ✓" : "Awaiting another player...";
+    const proceedDisabled = !opponentJoined || !this.playerId;
     root.innerHTML = `
       <main class="app-shell lobby-screen">
         <div class="lobby-screen__overlay"></div>
@@ -530,6 +618,7 @@ export class GameApp {
                 Securely connect through Cloudflare Tunnel and confirm match settings before you draft.
               </p>
               <p class="lobby-screen__player-indicator">${playerIndicator}</p>
+              <p class="lobby-screen__player-indicator lobby-screen__player-indicator--status">${opponentIndicator}</p>
             </div>
             <div class="lobby-screen__actions">
               <button class="title-screen__button" type="button" data-action="cancel-game">
@@ -539,6 +628,8 @@ export class GameApp {
                 class="title-screen__button lobby-screen__button-next"
                 type="button"
                 data-action="open-characters"
+                ${proceedDisabled ? "disabled" : ""}
+                ${proceedDisabled ? 'title="awaiting other player"' : ""}
               >
                 Character Selection
               </button>
@@ -566,7 +657,7 @@ export class GameApp {
               <div class="lobby-screen__form">
                 <label>
                   Map
-                  <select>
+                  <select data-setting="map">
                     <option>Stark Tower Atrium</option>
                     <option>Madripoor Backstreets</option>
                     <option>Helicarrier Hangar</option>
@@ -576,7 +667,7 @@ export class GameApp {
                 </label>
                 <label>
                   Map Size
-                  <select>
+                  <select data-setting="map-size">
                     <option>Compact</option>
                     <option>Standard</option>
                     <option>Large</option>
@@ -608,7 +699,7 @@ export class GameApp {
                 </label>
                 <label>
                   Game Type
-                  <select>
+                  <select data-setting="game-type">
                     <option>Skirmish</option>
                     <option>Capture the Relic</option>
                     <option>King of the Hill</option>
@@ -617,8 +708,8 @@ export class GameApp {
                   </select>
                 </label>
                 <label>
-                  Player One Highlight Color
-                  <input type="color" data-setting="player-color" aria-label="Player one highlight color" />
+                  Your Highlight Color
+                  <input type="color" data-setting="player-color" aria-label="Your highlight color" />
                 </label>
               </div>
             </div>
@@ -659,9 +750,20 @@ export class GameApp {
 
     const proceedButton = root.querySelector<HTMLButtonElement>("[data-action='open-characters']");
     proceedButton?.addEventListener("click", () => {
+      if (proceedDisabled) {
+        return;
+      }
+      const mapSelect = root.querySelector<HTMLSelectElement>("[data-setting='map']");
+      const mapSizeSelect = root.querySelector<HTMLSelectElement>("[data-setting='map-size']");
+      const gameTypeSelect = root.querySelector<HTMLSelectElement>("[data-setting='game-type']");
       const pointsSelect = root.querySelector<HTMLSelectElement>("[data-setting='team-points']");
       const seeOpponentSelect = root.querySelector<HTMLSelectElement>("[data-setting='see-opponent']");
       const allowDuplicateSelect = root.querySelector<HTMLSelectElement>("[data-setting='allow-duplicate']");
+      this.lobbySettings = {
+        map: mapSelect?.value ?? this.lobbySettings.map,
+        mapSize: mapSizeSelect?.value ?? this.lobbySettings.mapSize,
+        gameType: gameTypeSelect?.value ?? this.lobbySettings.gameType,
+      };
       this.teamPointCap = Number(pointsSelect?.value ?? 20);
       this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
       this.selectedCharacters = { one: [], two: [] };
@@ -675,6 +777,9 @@ export class GameApp {
         teamPointCap: this.teamPointCap,
         seeOpponentSelection,
         allowDuplicateSelection,
+        map: this.lobbySettings.map,
+        mapSize: this.lobbySettings.mapSize,
+        gameType: this.lobbySettings.gameType,
       });
       this.sendLobbyMessage("draft:reset", {});
       this.draftOrigin = "lobby";
@@ -683,9 +788,35 @@ export class GameApp {
       this.render(root);
     });
 
+    const mapSelect = root.querySelector<HTMLSelectElement>("[data-setting='map']");
+    const mapSizeSelect = root.querySelector<HTMLSelectElement>("[data-setting='map-size']");
+    const gameTypeSelect = root.querySelector<HTMLSelectElement>("[data-setting='game-type']");
     const pointsSelect = root.querySelector<HTMLSelectElement>("[data-setting='team-points']");
     const seeOpponentSelect = root.querySelector<HTMLSelectElement>("[data-setting='see-opponent']");
     const allowDuplicateSelect = root.querySelector<HTMLSelectElement>("[data-setting='allow-duplicate']");
+    if (mapSelect) {
+      mapSelect.value = this.lobbySettings.map;
+      mapSelect.addEventListener("change", () => {
+        this.lobbySettings.map = mapSelect.value;
+        this.sendLobbyMessage("settings:update", { map: this.lobbySettings.map });
+      });
+    }
+
+    if (mapSizeSelect) {
+      mapSizeSelect.value = this.lobbySettings.mapSize;
+      mapSizeSelect.addEventListener("change", () => {
+        this.lobbySettings.mapSize = mapSizeSelect.value;
+        this.sendLobbyMessage("settings:update", { mapSize: this.lobbySettings.mapSize });
+      });
+    }
+
+    if (gameTypeSelect) {
+      gameTypeSelect.value = this.lobbySettings.gameType;
+      gameTypeSelect.addEventListener("change", () => {
+        this.lobbySettings.gameType = gameTypeSelect.value;
+        this.sendLobbyMessage("settings:update", { gameType: this.lobbySettings.gameType });
+      });
+    }
     if (pointsSelect) {
       pointsSelect.value = String(this.teamPointCap);
       pointsSelect.addEventListener("change", () => {
@@ -1021,14 +1152,22 @@ export class GameApp {
     const isDraft = this.characterSelectionMode === "draft";
     const showOpponentSelection = this.draftSettings.seeOpponentSelection;
     const allowDuplicateSelection = this.draftSettings.allowDuplicateSelection;
+    const isAlternatingDraft = showOpponentSelection && !allowDuplicateSelection;
     const isCpuSetup = this.draftOrigin === "cpu-setup";
     const isCpuRandom = isCpuSetup && this.cpuRosterSelection === "random";
     const showPlayerToggle = isCpuSetup && this.cpuRosterSelection === "player";
     const isNetworkMatch = this.draftOrigin === "lobby";
-    const playerColors = {
-      one: [this.playerHighlightColor, this.playerHighlightColor],
-      two: ["#1e88e5", "#43a047"],
-    };
+    const opponentHighlightColor = "#1e88e5";
+    const playerColors =
+      isNetworkMatch && this.playerId === "two"
+        ? {
+            one: [opponentHighlightColor],
+            two: [this.playerHighlightColor],
+          }
+        : {
+            one: [this.playerHighlightColor],
+            two: [opponentHighlightColor],
+          };
     const draftBackLabel = this.draftOrigin === "cpu-setup" ? "Back to Game Setup" : "Back to Lobby";
     const networkPlayerLabel = this.playerId === "two" ? "Player Two" : "Player One";
     const networkOpponentLabel = this.playerId === "two" ? "Player One" : "Player Two";
@@ -1036,7 +1175,7 @@ export class GameApp {
     if (isCpuRandom) {
       this.activeDraftPlayer = "one";
     }
-    if (isNetworkMatch && this.playerId) {
+    if (isNetworkMatch && this.playerId && !isAlternatingDraft) {
       this.activeDraftPlayer = this.playerId;
     }
 
@@ -1082,8 +1221,11 @@ export class GameApp {
       const alreadySelected =
         isSelectedByPlayer("one", slug) || isSelectedByPlayer("two", slug);
       const cannotAfford = this.pointsRemaining[this.activeDraftPlayer] - character.pointValue < 0;
+      const isPlayerTurn =
+        !isAlternatingDraft || !isNetworkMatch || !this.playerId || this.activeDraftPlayer === this.playerId;
       const cannotSelect =
         !isDraft ||
+        !isPlayerTurn ||
         cannotAfford ||
         (!allowDuplicateSelection && alreadySelected) ||
         (allowDuplicateSelection && isSelectedByPlayer(this.activeDraftPlayer, slug));
@@ -1150,6 +1292,10 @@ export class GameApp {
             <div>
               <dt>Psychic Resistance</dt>
               <dd>${character.psychicResistance}</dd>
+            </div>
+            <div>
+              <dt>Goodness</dt>
+              <dd>${character.goodness}</dd>
             </div>
             <div class="character-card__traits">
               <dt>Traits</dt>
@@ -1307,10 +1453,14 @@ export class GameApp {
     const backButton = root.querySelector<HTMLButtonElement>("[data-action='back-screen']");
     backButton?.addEventListener("click", () => {
       if (isDraft) {
-        if (!isNetworkMatch) {
+        if (isNetworkMatch) {
+          this.sendLobbyMessage("lobby:return", {});
           this.resetDraftSelections();
+          this.currentScreen = "lobby";
+        } else {
+          this.resetDraftSelections();
+          this.currentScreen = this.draftOrigin === "cpu-setup" ? "cpu-setup" : "lobby";
         }
-        this.currentScreen = this.draftOrigin === "cpu-setup" ? "cpu-setup" : "lobby";
       } else {
         this.currentScreen = "title";
       }
@@ -1394,7 +1544,10 @@ export class GameApp {
         const isSelected = Boolean(showPlayerOne || showPlayerTwo);
         const alreadySelected = selectedByOne || selectedByTwo;
         const cannotAfford = this.pointsRemaining[this.activeDraftPlayer] - value < 0;
+        const isPlayerTurn =
+          !isAlternatingDraft || !isNetworkMatch || !this.playerId || this.activeDraftPlayer === this.playerId;
         const cannotSelect =
+          !isPlayerTurn ||
           cannotAfford ||
           (!allowDuplicateSelection && alreadySelected) ||
           (allowDuplicateSelection && isSelectedByPlayer(this.activeDraftPlayer, id));
@@ -1455,6 +1608,9 @@ export class GameApp {
         if (isNetworkMatch && !this.playerId) {
           return;
         }
+        if (isAlternatingDraft && isNetworkMatch && this.playerId && this.activeDraftPlayer !== this.playerId) {
+          return;
+        }
         const activePlayer = isNetworkMatch && this.playerId ? this.playerId : this.activeDraftPlayer;
         const selectedByOne = isSelectedByPlayer("one", id);
         const selectedByTwo = isSelectedByPlayer("two", id);
@@ -1502,6 +1658,9 @@ export class GameApp {
           } else if (!canPlayerPick(this.activeDraftPlayer)) {
             this.activeDraftPlayer = otherPlayer;
           }
+        }
+        if (isNetworkMatch && isAlternatingDraft) {
+          this.updateAlternatingDraftTurn();
         }
         updateDraftUI();
       });
