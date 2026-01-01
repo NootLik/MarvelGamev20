@@ -1,7 +1,7 @@
 import { routes } from "./routes";
 import { WsClient } from "../net/wsClient";
 
-type ScreenView = "title" | "characters" | "lobby" | "pvc-lobby" | "rules";
+type ScreenView = "title" | "characters" | "lobby" | "pvc-lobby" | "rules" | "match";
 
 type CharacterProfile = {
   name: string;
@@ -448,6 +448,11 @@ export class GameApp {
 
     if (this.currentScreen === "rules") {
       this.renderRules(root);
+      return;
+    }
+
+    if (this.currentScreen === "match") {
+      this.renderMatch(root);
       return;
     }
 
@@ -1507,6 +1512,14 @@ export class GameApp {
       });
     });
 
+    startButton?.addEventListener("click", () => {
+      if (startButton.disabled) {
+        return;
+      }
+      this.currentScreen = "match";
+      this.render(root);
+    });
+
     updateDraftUI();
   }
 
@@ -1533,6 +1546,145 @@ export class GameApp {
     });
     this.selectedCharacters.two = picks;
     this.pointsRemaining.two = remainingPoints;
+  }
+
+  private renderMatch(root: Element) {
+    const rosterById = new Map(CHARACTER_ROSTER.map((character) => [slugify(character.alias), character]));
+    const fallbackTeam = (startIndex: number) =>
+      CHARACTER_ROSTER.slice(startIndex, startIndex + 4).map((character) => slugify(character.alias));
+    const playerOneIds = this.selectedCharacters.one.length ? this.selectedCharacters.one : fallbackTeam(0);
+    const playerTwoIds = this.selectedCharacters.two.length ? this.selectedCharacters.two : fallbackTeam(4);
+    const buildRosterCard = (id: string) => {
+      const character = rosterById.get(id);
+      const portrait = `/assets/characters/portraits/${id}.svg`;
+      return `
+        <article class="match-screen__unit-card">
+          <div class="match-screen__unit-portrait">
+            <img src="${portrait}" alt="${character?.alias ?? "Unknown"} portrait" />
+          </div>
+          <div class="match-screen__unit-meta">
+            <h3>${character?.alias ?? "Unknown Operative"}</h3>
+            <p>${character?.name ?? "Combatant"}</p>
+          </div>
+          <div class="match-screen__bars">
+            <div class="match-screen__bar">
+              <span>Health</span>
+              <div class="match-screen__bar-track">
+                <div class="match-screen__bar-fill match-screen__bar-fill--health" style="width: 78%;"></div>
+              </div>
+            </div>
+            <div class="match-screen__bar">
+              <span>Momentum</span>
+              <div class="match-screen__bar-track">
+                <div class="match-screen__bar-fill match-screen__bar-fill--momentum" style="width: 42%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="match-screen__status-row">
+            <span class="match-screen__status">Status Slot</span>
+            <span class="match-screen__status match-screen__status--muted">+</span>
+          </div>
+        </article>
+      `;
+    };
+
+    root.innerHTML = `
+      <main class="app-shell match-screen">
+        <div class="match-screen__overlay"></div>
+        <section class="match-screen__content">
+          <header class="match-screen__header">
+            <div>
+              <p class="title-screen__eyebrow">Marvel Squad RPG</p>
+              <h1 class="match-screen__title">Skirmish Arena</h1>
+              <p class="match-screen__subtitle">Track squads, monitor statuses, and command the hex grid battlefield.</p>
+            </div>
+            <button class="title-screen__button match-screen__exit" type="button" data-action="exit-match">
+              Exit Match
+            </button>
+          </header>
+          <div class="match-screen__grid">
+            <aside class="match-screen__roster match-screen__roster--ally">
+              <h2>Player Squad</h2>
+              <div class="match-screen__roster-list" role="list">
+                ${playerOneIds.map((id) => buildRosterCard(id)).join("")}
+              </div>
+            </aside>
+
+            <section class="match-screen__map" aria-label="Battlefield map">
+              <div class="match-screen__map-header">
+                <h2>Battle Map</h2>
+                <div class="match-screen__map-controls" role="group" aria-label="Map zoom controls">
+                  <button class="match-screen__map-button" type="button" data-action="zoom-out">-</button>
+                  <input
+                    class="match-screen__map-slider"
+                    type="range"
+                    min="0.7"
+                    max="1.6"
+                    step="0.05"
+                    value="1"
+                    data-action="zoom-slider"
+                    aria-label="Map zoom"
+                  />
+                  <button class="match-screen__map-button" type="button" data-action="zoom-in">+</button>
+                  <button class="match-screen__map-button" type="button" data-action="zoom-reset">Reset</button>
+                </div>
+              </div>
+              <div class="match-screen__map-viewport">
+                <div class="match-screen__map-canvas" data-role="map-canvas" aria-label="Hex grid map">
+                  <div class="match-screen__map-object match-screen__map-object--alpha">Alpha Zone</div>
+                  <div class="match-screen__map-object match-screen__map-object--beta">Beta Ridge</div>
+                  <div class="match-screen__map-object match-screen__map-object--gamma">Gamma Point</div>
+                </div>
+              </div>
+            </section>
+
+            <aside class="match-screen__roster match-screen__roster--enemy">
+              <h2>Opponent Squad</h2>
+              <div class="match-screen__roster-list" role="list">
+                ${playerTwoIds.map((id) => buildRosterCard(id)).join("")}
+              </div>
+            </aside>
+          </div>
+        </section>
+      </main>
+    `;
+
+    const exitButton = root.querySelector<HTMLButtonElement>("[data-action='exit-match']");
+    exitButton?.addEventListener("click", () => {
+      this.currentScreen = "title";
+      this.render(root);
+    });
+
+    const mapCanvas = root.querySelector<HTMLElement>("[data-role='map-canvas']");
+    const zoomSlider = root.querySelector<HTMLInputElement>("[data-action='zoom-slider']");
+    const zoomIn = root.querySelector<HTMLButtonElement>("[data-action='zoom-in']");
+    const zoomOut = root.querySelector<HTMLButtonElement>("[data-action='zoom-out']");
+    const zoomReset = root.querySelector<HTMLButtonElement>("[data-action='zoom-reset']");
+    const baseSize = { width: 1400, height: 900 };
+    let currentZoom = 1;
+
+    const updateZoom = (nextZoom: number) => {
+      if (!mapCanvas) {
+        return;
+      }
+      currentZoom = Math.min(1.6, Math.max(0.7, nextZoom));
+      mapCanvas.style.width = `${baseSize.width * currentZoom}px`;
+      mapCanvas.style.height = `${baseSize.height * currentZoom}px`;
+      if (zoomSlider) {
+        zoomSlider.value = String(currentZoom);
+      }
+    };
+
+    zoomSlider?.addEventListener("input", () => {
+      const value = Number(zoomSlider.value);
+      updateZoom(value);
+    });
+
+    zoomIn?.addEventListener("click", () => updateZoom(currentZoom + 0.1));
+    zoomOut?.addEventListener("click", () => updateZoom(currentZoom - 0.1));
+    zoomReset?.addEventListener("click", () => updateZoom(1));
+
+    updateZoom(currentZoom);
   }
 
   private renderRules(root: Element) {
