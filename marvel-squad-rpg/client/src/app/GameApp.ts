@@ -351,10 +351,99 @@ const slugify = (value: string) =>
 
 const escapeAttribute = (value: string) => value.replace(/"/g, "&quot;");
 
+const hexToRgb = (value: string) => {
+  const normalized = value.replace("#", "");
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((channel) => `${channel}${channel}`)
+          .join("")
+      : normalized;
+  if (expanded.length !== 6) {
+    return null;
+  }
+  const numeric = Number.parseInt(expanded, 16);
+  return {
+    r: (numeric >> 16) & 255,
+    g: (numeric >> 8) & 255,
+    b: numeric & 255,
+  };
+};
+
+const rgbToHsl = (r: number, g: number, b: number) => {
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  const lightness = (max + min) / 2;
+  if (delta === 0) {
+    return { h: 0, s: 0, l: lightness * 100 };
+  }
+  const saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+  let hue = 0;
+  switch (max) {
+    case red:
+      hue = (green - blue) / delta + (green < blue ? 6 : 0);
+      break;
+    case green:
+      hue = (blue - red) / delta + 2;
+      break;
+    default:
+      hue = (red - green) / delta + 4;
+      break;
+  }
+  return { h: hue * 60, s: saturation * 100, l: lightness * 100 };
+};
+
+const hslToHex = (h: number, s: number, l: number) => {
+  const saturation = s / 100;
+  const lightness = l / 100;
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const hueSegment = h / 60;
+  const second = chroma * (1 - Math.abs((hueSegment % 2) - 1));
+  const match = lightness - chroma / 2;
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  if (hueSegment >= 0 && hueSegment < 1) {
+    red = chroma;
+    green = second;
+  } else if (hueSegment >= 1 && hueSegment < 2) {
+    red = second;
+    green = chroma;
+  } else if (hueSegment >= 2 && hueSegment < 3) {
+    green = chroma;
+    blue = second;
+  } else if (hueSegment >= 3 && hueSegment < 4) {
+    green = second;
+    blue = chroma;
+  } else if (hueSegment >= 4 && hueSegment < 5) {
+    red = second;
+    blue = chroma;
+  } else {
+    red = chroma;
+    blue = second;
+  }
+  const toHex = (channel: number) => Math.round((channel + match) * 255).toString(16).padStart(2, "0");
+  return `#${toHex(red)}${toHex(green)}${toHex(blue)}`;
+};
+
+const generateDistinctHighlightColor = (baseColor: string) => {
+  const fallback = { r: 229, g: 57, b: 53 };
+  const base = hexToRgb(baseColor) ?? fallback;
+  const baseHue = rgbToHsl(base.r, base.g, base.b).h;
+  const offset = 90 + Math.random() * 180;
+  const hue = (baseHue + offset) % 360;
+  return hslToHex(hue, 70, 45);
+};
+
 export class GameApp {
   private currentScreen: ScreenView = "title";
   private characterSelectionMode: CharacterSelectionMode = "browse";
-  private draftOrigin: "lobby" | "cpu-setup" | null = null;
+  private draftOrigin: "lobby" | "cpu-setup" | "pvc-lobby" | null = null;
   private teamPointCap = 20;
   private pointsRemaining = { one: 20, two: 20 };
   private selectedCharacters = { one: [] as string[], two: [] as string[] };
@@ -365,6 +454,7 @@ export class GameApp {
   };
   private readyState = { playerOne: false, playerTwo: false };
   private playerHighlightColor = "#e53935";
+  private cpuHighlightColor = "#1e88e5";
   private lobbyPlayers = { count: 0, assigned: [] as DraftPlayer[] };
   private lobbySettings = {
     map: "Stark Tower Atrium",
@@ -996,6 +1086,7 @@ export class GameApp {
       this.characterSelectionMode = "draft";
       const rosterSelect = root.querySelector<HTMLSelectElement>("[data-setting='cpu-roster']");
       this.cpuRosterSelection = (rosterSelect?.value ?? "random") as CpuRosterSelection;
+      this.assignCpuHighlightColor();
       if (this.cpuRosterSelection === "random") {
         this.generateCpuRoster();
         this.activeDraftPlayer = "one";
@@ -1107,11 +1198,18 @@ export class GameApp {
               </label>
               <label>
                 Total Team Points
-                <select>
-                  <option>15</option>
-                  <option>20</option>
-                  <option>25</option>
-                  <option>30</option>
+                <select data-setting="team-points">
+                  <option value="15">15</option>
+                  <option value="20">20</option>
+                  <option value="25">25</option>
+                  <option value="30">30</option>
+                </select>
+              </label>
+              <label>
+                Computer Character Selection
+                <select data-setting="cpu-roster">
+                  <option value="player">Player Selected</option>
+                  <option value="random">Computer Selected</option>
                 </select>
               </label>
               <label>
@@ -1126,7 +1224,7 @@ export class GameApp {
               </label>
               <label>
                 AI Difficulty
-                <select>
+                <select data-setting="cpu-difficulty">
                   <option>Story</option>
                   <option>Veteran</option>
                   <option>Heroic</option>
@@ -1148,9 +1246,49 @@ export class GameApp {
 
     const proceedButton = root.querySelector<HTMLButtonElement>("[data-action='open-characters']");
     proceedButton?.addEventListener("click", () => {
+      const pointsSelect = root.querySelector<HTMLSelectElement>("[data-setting='team-points']");
+      const cpuRosterSelect = root.querySelector<HTMLSelectElement>("[data-setting='cpu-roster']");
+      const cpuDifficultySelect = root.querySelector<HTMLSelectElement>("[data-setting='cpu-difficulty']");
+      this.teamPointCap = Number(pointsSelect?.value ?? 20);
+      this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
+      this.selectedCharacters = { one: [], two: [] };
+      this.activeDraftPlayer = "one";
+      this.readyState = { playerOne: false, playerTwo: false };
+      this.draftSettings = { seeOpponentSelection: true, allowDuplicateSelection: true };
+      this.draftOrigin = "pvc-lobby";
+      this.characterSelectionMode = "draft";
+      this.cpuRosterSelection = (cpuRosterSelect?.value ?? "random") as CpuRosterSelection;
+      this.cpuDifficulty = cpuDifficultySelect?.value ?? this.cpuDifficulty;
+      this.assignCpuHighlightColor();
+      if (this.cpuRosterSelection === "random") {
+        this.generateCpuRoster();
+        this.activeDraftPlayer = "one";
+      }
       this.currentScreen = "characters";
       this.render(root);
     });
+
+    const pointsSelect = root.querySelector<HTMLSelectElement>("[data-setting='team-points']");
+    const cpuDifficultySelect = root.querySelector<HTMLSelectElement>("[data-setting='cpu-difficulty']");
+    const cpuRosterSelect = root.querySelector<HTMLSelectElement>("[data-setting='cpu-roster']");
+    if (pointsSelect) {
+      pointsSelect.value = String(this.teamPointCap);
+      pointsSelect.addEventListener("change", () => {
+        this.teamPointCap = Number(pointsSelect.value);
+      });
+    }
+    if (cpuDifficultySelect) {
+      cpuDifficultySelect.value = this.cpuDifficulty;
+      cpuDifficultySelect.addEventListener("change", () => {
+        this.cpuDifficulty = cpuDifficultySelect.value;
+      });
+    }
+    if (cpuRosterSelect) {
+      cpuRosterSelect.value = this.cpuRosterSelection;
+      cpuRosterSelect.addEventListener("change", () => {
+        this.cpuRosterSelection = cpuRosterSelect.value as CpuRosterSelection;
+      });
+    }
   }
 
   private renderCharacters(root: Element) {
@@ -1158,11 +1296,11 @@ export class GameApp {
     const showOpponentSelection = this.draftSettings.seeOpponentSelection;
     const allowDuplicateSelection = this.draftSettings.allowDuplicateSelection;
     const isAlternatingDraft = showOpponentSelection && !allowDuplicateSelection;
-    const isCpuSetup = this.draftOrigin === "cpu-setup";
-    const isCpuRandom = isCpuSetup && this.cpuRosterSelection === "random";
-    const showPlayerToggle = isCpuSetup && this.cpuRosterSelection === "player";
+    const isCpuMatch = this.draftOrigin === "cpu-setup" || this.draftOrigin === "pvc-lobby";
+    const isCpuRandom = isCpuMatch && this.cpuRosterSelection === "random";
+    const showPlayerToggle = isCpuMatch && this.cpuRosterSelection === "player";
     const isNetworkMatch = this.draftOrigin === "lobby";
-    const opponentHighlightColor = "#1e88e5";
+    const opponentHighlightColor = isNetworkMatch ? "#1e88e5" : this.cpuHighlightColor;
     const playerColors =
       isNetworkMatch && this.playerId === "two"
         ? {
@@ -1192,7 +1330,7 @@ export class GameApp {
       return palette[Math.max(index, 0) % palette.length];
     };
     const playerLabel = (player: DraftPlayer) =>
-      isCpuSetup ? (player === "one" ? "Player" : "Computer") : player === "one" ? "Player One" : "Player Two";
+      isCpuMatch ? (player === "one" ? "Player" : "Computer") : player === "one" ? "Player One" : "Player Two";
     const canPlayerPick = (player: DraftPlayer) =>
       CHARACTER_ROSTER.some((character) => {
         const id = slugify(character.alias);
@@ -1464,7 +1602,12 @@ export class GameApp {
           this.currentScreen = "lobby";
         } else {
           this.resetDraftSelections();
-          this.currentScreen = this.draftOrigin === "cpu-setup" ? "cpu-setup" : "lobby";
+          this.currentScreen =
+            this.draftOrigin === "cpu-setup"
+              ? "cpu-setup"
+              : this.draftOrigin === "pvc-lobby"
+                ? "pvc-lobby"
+                : "lobby";
         }
       } else {
         this.currentScreen = "title";
@@ -1595,7 +1738,7 @@ export class GameApp {
     playerButtons.forEach((button) => {
       button.addEventListener("click", () => {
         const player = button.dataset.player as DraftPlayer | undefined;
-        if (!player || !allowDuplicateSelection) {
+        if (!player) {
           return;
         }
         this.activeDraftPlayer = player;
@@ -1687,6 +1830,10 @@ export class GameApp {
     this.pointsRemaining = { one: this.teamPointCap, two: this.teamPointCap };
     this.activeDraftPlayer = "one";
     this.readyState = { playerOne: false, playerTwo: false };
+  }
+
+  private assignCpuHighlightColor() {
+    this.cpuHighlightColor = generateDistinctHighlightColor(this.playerHighlightColor);
   }
 
   private generateCpuRoster() {
