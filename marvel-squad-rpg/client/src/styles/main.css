@@ -587,6 +587,17 @@ body {
   font-size: 1.1rem;
 }
 
+.lobby-screen__button-next:disabled {
+  background: rgba(245, 245, 245, 0.2);
+  color: rgba(245, 245, 245, 0.65);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.lobby-screen__button-next:disabled::after {
+  color: rgba(245, 245, 245, 0.6);
+}
+
 .lobby-screen__panel {
   background: rgba(10, 12, 24, 0.85);
   border-radius: 20px;
