@@ -481,7 +481,9 @@ export class GameApp {
 
   private setupLobbyConnection() {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const serverPort = window.location.port === "5173" ? "8000" : window.location.port;
+    const frontendPort = window.location.port;
+    const devFrontendPorts = new Set(["5173", "4173"]);
+    const serverPort = devFrontendPorts.has(frontendPort) ? "8000" : frontendPort;
     const serverHost = serverPort ? `${window.location.hostname}:${serverPort}` : window.location.hostname;
     const url = `${protocol}://${serverHost}/ws/lobby?room=${encodeURIComponent(this.roomId)}`;
     this.wsClient = new WsClient({ url });
